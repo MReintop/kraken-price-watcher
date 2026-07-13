@@ -7,6 +7,7 @@ export function getCoinDetails(coin: Coin) {
     priceLabel: `$${coin.current_price.toLocaleString()}`,
     changeLabel: `${up ? '▲' : '▼'} ${coin.price_change_percentage_24h.toFixed(2)}%`,
     isUp: up,
-    color: up ? '#16a34a' : '#dc2626',
+    // Color is a presentation concern — callers derive it from `isUp` via
+    // theme's changeColors() so gain/loss colors stay consistent app-wide.
   };
 }

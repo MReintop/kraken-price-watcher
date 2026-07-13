@@ -6,15 +6,14 @@ import {
   Pressable,
   PressableStateCallbackType,
 } from 'react-native';
-import { Coin } from '../../types';
 import { getCoinDetails } from './CoinCardUtils';
-import { theme, webTransition } from '../../theme';
+import { theme, webTransition, changeColors } from '../../theme';
 import { useAppSelector } from '../../store/hooks';
 import { selectCoinById } from '../../store/coinsSlice';
 
 interface CoinCardProps {
   coinId: string;
-  onSelect: (coin: Coin) => void;
+  onSelect: () => void; // the parent knows the id; the card just signals a tap
 }
 
 type WebPressableState = PressableStateCallbackType & { hovered?: boolean };
@@ -24,10 +23,11 @@ export default function CoinCard({ coinId, onSelect }: CoinCardProps) {
   if (!coin) return null;
 
   const coinDetails = getCoinDetails(coin);
+  const change = changeColors(coinDetails.isUp);
 
   return (
     <Pressable
-      onPress={() => onSelect(coin)}
+      onPress={onSelect}
       accessibilityRole="button"
       style={(state) => {
         const { pressed, hovered } = state as WebPressableState;
@@ -57,13 +57,10 @@ export default function CoinCard({ coinId, onSelect }: CoinCardProps) {
         {coinDetails.priceLabel}
       </Text>
 
-      <View
-        style={[
-          styles.pill,
-          { backgroundColor: coinDetails.isUp ? theme.tint.up : theme.tint.down },
-        ]}
-      >
-        <Text style={[styles.change, { color: coinDetails.color }]}>{coinDetails.changeLabel}</Text>
+      <View style={[styles.pill, { backgroundColor: change.tint }]}>
+        <Text style={[styles.change, { color: change.fg }]}>
+          {coinDetails.changeLabel}
+        </Text>
       </View>
     </Pressable>
   );

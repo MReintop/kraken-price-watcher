@@ -9,9 +9,15 @@ export type Coin = {
   total_volume: number;
 };
 
+// Navigation route names — one source of truth instead of magic strings.
+export enum NavigateKey {
+  Prices = 'Prices',
+  CoinDetail = 'CoinDetail',
+}
+
 export type RootStackParamList = {
-  Prices: undefined; // no params
-  CoinDetail: { coin: Coin };
+  [NavigateKey.Prices]: undefined;
+  [NavigateKey.CoinDetail]: { coinId: string }; // pass the id; read live coin from the store
 };
 
 // Async request lifecycle for the coins slice (string values so Redux
@@ -21,4 +27,20 @@ export enum FetchStatus {
   Loading = 'loading',
   Succeeded = 'succeeded',
   Failed = 'failed',
+}
+
+// One OHLC candle (from CoinGecko /coins/{id}/ohlc).
+export interface Candle {
+  t: number; // timestamp (ms)
+  o: number;
+  h: number;
+  l: number;
+  c: number;
+}
+
+// Chart timeframes. The value is also the button label shown in the UI.
+export enum Timeframe {
+  Day = '24H',
+  Month = '1M',
+  Year = '1Y',
 }

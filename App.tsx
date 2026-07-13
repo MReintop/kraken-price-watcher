@@ -6,8 +6,8 @@ import { Provider } from 'react-redux';
 
 import PricesScreen from './screens/PricesScreen';
 import CoinDetailScreen from './screens/CoinDetailScreen';
-import { RootStackParamList } from './types';
-import { customDarkTheme, navigatorScreenOptions, theme } from './theme';
+import { NavigateKey, RootStackParamList } from './types';
+import { customDarkTheme, navigatorScreenOptions } from './theme';
 import { store } from './store/store';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -20,14 +20,13 @@ export default function App() {
         <NavigationContainer theme={customDarkTheme}>
         <Stack.Navigator screenOptions={navigatorScreenOptions}>
           <Stack.Screen
-            name="Prices"
+            name={NavigateKey.Prices}
             component={PricesScreen}
             options={{ title: 'Kraken-lite' }}
           />
           <Stack.Screen
-            name="CoinDetail"
+            name={NavigateKey.CoinDetail}
             component={CoinDetailScreen}
-            options={({ route }) => ({ title: route.params.coin.name })}
           />
         </Stack.Navigator>
         </NavigationContainer>

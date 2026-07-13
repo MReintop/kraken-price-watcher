@@ -25,6 +25,13 @@ export const theme = {
   breakpoint: { sm: 376, md: 768 },
 } as const;
 
+// Single source for the up/down palette: `fg` for text/icons, `tint` for the
+// translucent pill background. Keeps every gain/loss element on the same colors.
+export const changeColors = (isUp: boolean) => ({
+  fg: isUp ? theme.color.up : theme.color.down,
+  tint: isUp ? theme.tint.up : theme.tint.down,
+});
+
 export const navigatorScreenOptions = {
   headerStyle: { backgroundColor: theme.color.bg },
   headerTitleStyle: { color: theme.color.text },

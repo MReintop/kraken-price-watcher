@@ -1,0 +1,58 @@
+import { View, Text, Image, StyleSheet } from 'react-native';
+import { Coin } from '../../types';
+import { getCoinDetails } from '../coinCard/CoinCardUtils';
+import AnimatedPrice from '../animatedPrice/AnimatedPrice';
+import PriceTickIndicator from '../priceTickIndicator/PriceTickIndicator';
+import { theme, changeColors } from '../../theme';
+
+// Top panel: icon, name, ticker, live price + tick arrow, and the 24h change.
+export default function CoinHeader({ coin }: { coin: Coin }) {
+  const details = getCoinDetails(coin);
+  const change = changeColors(details.isUp);
+
+  return (
+    <View style={styles.wrap}>
+      <View style={styles.head}>
+        <Image source={{ uri: coin.image }} style={styles.icon} />
+        <Text style={styles.name}>{details.name}</Text>
+        <Text style={styles.symbol}>{coin.symbol.toUpperCase()}</Text>
+      </View>
+
+      <View style={styles.priceRow}>
+        <View style={styles.tickSlot} />
+        <AnimatedPrice value={coin.current_price} style={styles.price} />
+        <View style={styles.tickSlot}>
+          <PriceTickIndicator price={coin.current_price} />
+        </View>
+      </View>
+
+      <View style={[styles.pill, { backgroundColor: change.tint }]}>
+        <Text style={[styles.change, { color: change.fg }]}>
+          {details.changeLabel} (24h)
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  wrap: { alignItems: 'center', gap: theme.space.sm, marginTop: theme.space.lg },
+  head: { alignItems: 'center', gap: theme.space.xs },
+  icon: { width: 72, height: 72, borderRadius: theme.radius.pill },
+  name: { color: theme.color.text, fontSize: theme.font.h1, fontWeight: '800' },
+  symbol: { color: theme.color.muted, fontSize: theme.font.small, fontWeight: '600' },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.space.sm,
+  },
+  tickSlot: { width: 24, alignItems: 'center', justifyContent: 'center' },
+  price: { color: theme.color.text, fontSize: 32, fontWeight: '800' },
+  pill: {
+    paddingHorizontal: theme.space.md,
+    paddingVertical: theme.space.xs,
+    borderRadius: theme.radius.pill,
+  },
+  change: { fontSize: theme.font.small, fontWeight: '700' },
+});

@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { FetchStatus, RootStackParamList } from '../types';
+import { FetchStatus, NavigateKey, RootStackParamList } from '../types';
 import CoinCard from '../components/coinCard/CoinCard';
 import { theme } from '../theme';
 import { shallowEqual } from 'react-redux';
@@ -23,7 +23,7 @@ import {
   selectLive,
 } from '../store/coinsSlice';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Prices'>;
+type Props = NativeStackScreenProps<RootStackParamList, NavigateKey.Prices>;
 
 export default function PricesScreen({ navigation }: Props) {
   const dispatch = useAppDispatch();
@@ -95,7 +95,7 @@ export default function PricesScreen({ navigation }: Props) {
         renderItem={({ item: id }) => (
           <CoinCard
             coinId={id}
-            onSelect={(coin) => navigation.navigate('CoinDetail', { coin })}
+            onSelect={() => navigation.navigate(NavigateKey.CoinDetail, { coinId: id })}
           />
         )}
         refreshControl={
