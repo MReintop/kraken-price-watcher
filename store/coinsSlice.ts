@@ -48,7 +48,6 @@ const coinsSlice = createSlice({
     // Merge a batch of live ticks (already coalesced/throttled by the socket).
     tickersApplied(state, action: PayloadAction<KrakenTick[]>) {
       for (const tick of action.payload) {
-        console.log('SIIN muutus', tick.symbol, action.payload);
         const coin = state.items.find(
           (c) => c.symbol.toUpperCase() === tick.symbol,
         );
