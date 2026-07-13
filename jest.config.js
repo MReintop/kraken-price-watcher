@@ -14,29 +14,44 @@ const babel = (presets) => ({
   ],
 });
 
+// Both projects share a TS + JSX transform. The react preset lets the `logic`
+// project *instrument* .tsx files for coverage (they're pulled in by the
+// root-level collectCoverageFrom below) without hitting JSX syntax errors — it
+// still only RUNS .ts tests via its testMatch. .test.ts files carry no JSX, so
+// the preset is a no-op for them.
+const transform = babel([tsPreset, [reactPreset, { runtime: 'automatic' }]]);
+
 module.exports = {
   coverageDirectory: '<rootDir>/coverage',
+  // NOTE: coverage collection MUST be configured at the root — Jest ignores
+  // `collectCoverageFrom` set inside `projects[]`, which silently limited the
+  // report to only the files a test happened to import. Root-level globs force
+  // every source file into the report (untested ones show at 0%).
+  collectCoverageFrom: [
+    '**/*.{ts,tsx}',
+    '!**/*.test.{ts,tsx}',
+    '!**/*.d.ts',
+    '!**/*.config.{js,ts}',
+    '!test/**',
+    '!index.ts',
+  ],
+  coveragePathIgnorePatterns: [
+    '/node_modules/',
+    '<rootDir>/test/', // mocks are executed via moduleNameMapper
+    '<rootDir>/coverage/',
+  ],
   projects: [
     {
       displayName: 'logic',
       testEnvironment: 'node',
       testMatch: ['**/*.test.ts'],
-      transform: babel([tsPreset]),
-      // No JSX preset here → only instrument .ts files for coverage.
-      collectCoverageFrom: [
-        '**/*.ts',
-        '!**/*.test.ts',
-        '!**/*.d.ts',
-        '!*.config.ts',
-        '!test/**',
-        '!index.ts',
-      ],
+      transform,
     },
     {
       displayName: 'components',
       testEnvironment: 'jsdom',
       testMatch: ['**/*.test.tsx'],
-      transform: babel([tsPreset, [reactPreset, { runtime: 'automatic' }]]),
+      transform,
       // Render RN primitives as DOM via react-native-web; stub the icon font
       // and the (ESM) navigation package so tests don't transform them.
       moduleNameMapper: {
@@ -45,12 +60,9 @@ module.exports = {
         '^@react-navigation/native$': '<rootDir>/test/mocks/reactNavigation.ts',
         '^react-native-safe-area-context$':
           '<rootDir>/test/mocks/safeAreaContext.tsx',
+        '^react-native-svg$': '<rootDir>/test/mocks/reactNativeSvg.tsx',
       },
       transformIgnorePatterns: ['node_modules/(?!(react-native-web)/)'],
-      // JSX preset here → instrument .tsx files for coverage.
-      collectCoverageFrom: ['**/*.tsx', '!**/*.test.tsx', '!test/**'],
-      // Mocks are executed via moduleNameMapper → exclude them from coverage.
-      coveragePathIgnorePatterns: ['/node_modules/', '<rootDir>/test/'],
     },
   ],
 };

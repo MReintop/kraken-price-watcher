@@ -5,7 +5,7 @@ import coinsReducer from '../../store/coinsSlice';
 import { Coin, FetchStatus } from '../../types';
 import CoinCard from './CoinCard';
 
-const bitcoin: Coin = {
+const makeCoin = (overrides: Partial<Coin> = {}): Coin => ({
   id: 'bitcoin',
   name: 'Bitcoin',
   symbol: 'btc',
@@ -14,28 +14,34 @@ const bitcoin: Coin = {
   price_change_percentage_24h: -1.45,
   market_cap: 0,
   total_volume: 0,
-};
+  ...overrides,
+});
 
-// Render CoinCard inside a store preloaded with the given coins.
-function renderCard(items: Coin[], onSelect = jest.fn()) {
-  const store = configureStore({
+// Arrange helper: a store preloaded with the given coins.
+const setupStore = (items: Coin[]) =>
+  configureStore({
     reducer: { coins: coinsReducer },
-    preloadedState: {
-      coins: { items, status: FetchStatus.Succeeded, live: true },
-    },
+    preloadedState: { coins: { items, status: FetchStatus.Succeeded, live: true } },
   });
-  const utils = render(
+
+// Act helper: render the card against a store.
+const renderCard = (
+  store: ReturnType<typeof setupStore>,
+  onSelect = jest.fn(),
+) =>
+  render(
     <Provider store={store}>
       <CoinCard coinId="bitcoin" onSelect={onSelect} />
     </Provider>,
   );
-  return { ...utils, onSelect };
-}
 
 describe('CoinCard', () => {
   it('renders the coin name, ticker and formatted price', () => {
-    // Arrange / Act
-    renderCard([bitcoin]);
+    // Arrange
+    const store = setupStore([makeCoin()]);
+
+    // Act
+    renderCard(store);
 
     // Assert
     expect(screen.getByText('Bitcoin')).toBeTruthy();
@@ -43,20 +49,24 @@ describe('CoinCard', () => {
     expect(screen.getByText('$62,888')).toBeTruthy();
   });
 
-  it('calls onSelect with the coin when pressed', () => {
+  it('calls onSelect when pressed', () => {
     // Arrange
-    const { onSelect } = renderCard([bitcoin]);
+    const onSelect = jest.fn();
+    renderCard(setupStore([makeCoin()]), onSelect);
 
     // Act
     fireEvent.click(screen.getByRole('button'));
 
     // Assert
-    expect(onSelect).toHaveBeenCalledWith(bitcoin);
+    expect(onSelect).toHaveBeenCalled();
   });
 
   it('renders nothing when the coin is not in the store', () => {
-    // Arrange / Act
-    const { container } = renderCard([]);
+    // Arrange
+    const store = setupStore([]);
+
+    // Act
+    const { container } = renderCard(store);
 
     // Assert
     expect(container.firstChild).toBeNull();

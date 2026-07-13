@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import coinsReducer from '../store/coinsSlice';
-import { Coin } from '../types';
+import { Coin, NavigateKey } from '../types';
 import PricesScreen from './PricesScreen';
 
 const makeCoin = (overrides: Partial<Coin> = {}): Coin => ({
@@ -74,8 +74,8 @@ describe('PricesScreen (integration with a real store)', () => {
     fireEvent.click(screen.getByRole('button'));
 
     // Assert
-    expect(navigation.navigate).toHaveBeenCalledWith('CoinDetail', {
-      coin: expect.objectContaining({ id: 'bitcoin' }),
+    expect(navigation.navigate).toHaveBeenCalledWith(NavigateKey.CoinDetail, {
+      coinId: 'bitcoin',
     });
   });
 

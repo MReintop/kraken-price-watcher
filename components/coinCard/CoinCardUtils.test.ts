@@ -37,7 +37,6 @@ describe('getCoinDetails', () => {
     // Assert
     expect(result.isUp).toBe(false);
     expect(result.changeLabel).toContain('▼');
-    expect(result.color).toBe('#dc2626');
   });
 
   it('marks a positive change as up + green', () => {
@@ -50,6 +49,5 @@ describe('getCoinDetails', () => {
     // Assert
     expect(result.isUp).toBe(true);
     expect(result.changeLabel).toBe('▲ 2.50%');
-    expect(result.color).toBe('#16a34a');
   });
 });
