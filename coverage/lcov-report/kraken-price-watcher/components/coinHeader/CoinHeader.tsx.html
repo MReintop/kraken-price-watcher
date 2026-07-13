@@ -3,15 +3,15 @@
 <html lang="en">
 
 <head>
-    <title>Code coverage report for kraken-price-watcher/types.ts</title>
+    <title>Code coverage report for kraken-price-watcher/components/coinHeader/CoinHeader.tsx</title>
     <meta charset="utf-8" />
-    <link rel="stylesheet" href="../prettify.css" />
-    <link rel="stylesheet" href="../base.css" />
-    <link rel="shortcut icon" type="image/x-icon" href="../favicon.png" />
+    <link rel="stylesheet" href="../../../prettify.css" />
+    <link rel="stylesheet" href="../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style type='text/css'>
         .coverage-summary .sorter {
-            background-image: url(../sort-arrow-sprite.png);
+            background-image: url(../../../sort-arrow-sprite.png);
         }
     </style>
 </head>
@@ -19,34 +19,34 @@
 <body>
 <div class='wrapper'>
     <div class='pad1'>
-        <h1><a href="../index.html">All files</a> / <a href="index.html">kraken-price-watcher</a> types.ts</h1>
+        <h1><a href="../../../index.html">All files</a> / <a href="index.html">kraken-price-watcher/components/coinHeader</a> CoinHeader.tsx</h1>
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/0</span>
+                <span class='fraction'>4/4</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Branches</span>
                 <span class='fraction'>0/0</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/0</span>
+                <span class='fraction'>1/1</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/0</span>
+                <span class='fraction'>4/4</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -109,7 +109,31 @@
 <a name='L44'></a><a href='#L44'>44</a>
 <a name='L45'></a><a href='#L45'>45</a>
 <a name='L46'></a><a href='#L46'>46</a>
-<a name='L47'></a><a href='#L47'>47</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -134,6 +158,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -154,53 +179,64 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">export type Coin = {
-  id: string;
-  name: string;
-  symbol: string;
-  image: string;
-  current_price: number;
-  price_change_percentage_24h: number;
-  market_cap: number;
-  total_volume: number;
-};
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { View, Text, Image, StyleSheet } from 'react-native';
+import { Coin } from '../../types';
+import { getCoinDetails } from '../coinCard/CoinCardUtils';
+import AnimatedPrice from '../animatedPrice/AnimatedPrice';
+import PriceTickIndicator from '../priceTickIndicator/PriceTickIndicator';
+import { theme, changeColors } from '../../theme';
 &nbsp;
-// Navigation route names — one source of truth instead of magic strings.
-export enum NavigateKey {
-  Prices = 'Prices',
-  CoinDetail = 'CoinDetail',
+// Top panel: icon, name, ticker, live price + tick arrow, and the 24h change.
+export default function CoinHeader({ coin }: { coin: Coin }) {
+  const details = getCoinDetails(coin);
+  const change = changeColors(details.isUp);
+&nbsp;
+  return (
+    &lt;View style={styles.wrap}&gt;
+      &lt;View style={styles.head}&gt;
+        &lt;Image source={{ uri: coin.image }} style={styles.icon} /&gt;
+        &lt;Text style={styles.name}&gt;{details.name}&lt;/Text&gt;
+        &lt;Text style={styles.symbol}&gt;{coin.symbol.toUpperCase()}&lt;/Text&gt;
+      &lt;/View&gt;
+&nbsp;
+      &lt;View style={styles.priceRow}&gt;
+        &lt;View style={styles.tickSlot} /&gt;
+        &lt;AnimatedPrice value={coin.current_price} style={styles.price} /&gt;
+        &lt;View style={styles.tickSlot}&gt;
+          &lt;PriceTickIndicator price={coin.current_price} /&gt;
+        &lt;/View&gt;
+      &lt;/View&gt;
+&nbsp;
+      &lt;View style={[styles.pill, { backgroundColor: change.tint }]}&gt;
+        &lt;Text style={[styles.change, { color: change.fg }]}&gt;
+          {details.changeLabel} (24h)
+        &lt;/Text&gt;
+      &lt;/View&gt;
+    &lt;/View&gt;
+  );
 }
 &nbsp;
-export type RootStackParamList = {
-  [NavigateKey.Prices]: undefined;
-  [NavigateKey.CoinDetail]: { coinId: string }; // pass the id; read live coin from the store
-};
-&nbsp;
-// Async request lifecycle for the coins slice (string values so Redux
-// DevTools / serialized state stay readable).
-export enum FetchStatus {
-  Idle = 'idle',
-  Loading = 'loading',
-  Succeeded = 'succeeded',
-  Failed = 'failed',
-}
-&nbsp;
-// One OHLC candle (from CoinGecko /coins/{id}/ohlc).
-export interface Candle {
-  t: number; // timestamp (ms)
-  o: number;
-  h: number;
-  l: number;
-  c: number;
-}
-&nbsp;
-// Chart timeframes. The value is also the button label shown in the UI.
-export enum Timeframe {
-  Day = '24H',
-  Month = '1M',
-  Year = '1Y',
-}
+const styles = StyleSheet.create({
+  wrap: { alignItems: 'center', gap: theme.space.sm, marginTop: theme.space.lg },
+  head: { alignItems: 'center', gap: theme.space.xs },
+  icon: { width: 72, height: 72, borderRadius: theme.radius.pill },
+  name: { color: theme.color.text, fontSize: theme.font.h1, fontWeight: '800' },
+  symbol: { color: theme.color.muted, fontSize: theme.font.small, fontWeight: '600' },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.space.sm,
+  },
+  tickSlot: { width: 24, alignItems: 'center', justifyContent: 'center' },
+  price: { color: theme.color.text, fontSize: 32, fontWeight: '800' },
+  pill: {
+    paddingHorizontal: theme.space.md,
+    paddingVertical: theme.space.xs,
+    borderRadius: theme.radius.pill,
+  },
+  change: { fontSize: theme.font.small, fontWeight: '700' },
+});
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -210,14 +246,14 @@ export enum Timeframe {
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
                 at 2026-07-13T17:59:16.642Z
             </div>
-        <script src="../prettify.js"></script>
+        <script src="../../../prettify.js"></script>
         <script>
             window.onload = function () {
                 prettyPrint();
             };
         </script>
-        <script src="../sorter.js"></script>
-        <script src="../block-navigation.js"></script>
+        <script src="../../../sorter.js"></script>
+        <script src="../../../block-navigation.js"></script>
     </body>
 </html>
     
