@@ -13,3 +13,12 @@ export type RootStackParamList = {
   Prices: undefined; // no params
   CoinDetail: { coin: Coin };
 };
+
+// Async request lifecycle for the coins slice (string values so Redux
+// DevTools / serialized state stay readable).
+export enum FetchStatus {
+  Idle = 'idle',
+  Loading = 'loading',
+  Succeeded = 'succeeded',
+  Failed = 'failed',
+}

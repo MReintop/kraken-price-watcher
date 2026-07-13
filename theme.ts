@@ -1,4 +1,5 @@
 import { DarkTheme, Theme } from '@react-navigation/native';
+import { Platform, ViewStyle } from 'react-native';
 
 export const theme = {
   color: {
@@ -20,6 +21,8 @@ export const theme = {
   space: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 }, // 4-based scale
   radius: { sm: 8, md: 12, lg: 16, pill: 999 },
   font: { h1: 28, h2: 20, body: 16, small: 14, caption: 12 },
+  // Responsive breakpoints (min-width px). Below `sm` is xs.
+  breakpoint: { sm: 376, md: 768 },
 } as const;
 
 export const navigatorScreenOptions = {
@@ -42,3 +45,13 @@ export const customDarkTheme // Map our design tokens onto React Navigation's th
     primary: theme.color.accent,
   },
 };
+
+// Smooth transition is a react-native-web-only style; apply it on web only so
+// native never receives an unknown style prop.
+export const webTransition =
+  Platform.OS === 'web'
+    ? ({
+        transitionDuration: '150ms',
+        transitionProperty: 'background-color, border-color, transform',
+      } as unknown as ViewStyle)
+    : undefined;

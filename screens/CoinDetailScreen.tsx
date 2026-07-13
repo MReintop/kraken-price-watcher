@@ -2,7 +2,7 @@ import { View, Text, Image, StyleSheet } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../types';
-import { getCoinDetails } from '../components/priceRow/PriceRowUtils';
+import { getCoinDetails } from '../components/coinCard/CoinCardUtils';
 import { theme } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CoinDetail'>;
@@ -20,14 +20,27 @@ export default function CoinDetailScreen({ route }: Props) {
       </View>
 
       <Text style={styles.price}>{d.priceLabel}</Text>
-      <View style={[styles.pill, { backgroundColor: d.isUp ? theme.tint.up : theme.tint.down }]}>
-        <Text style={[styles.change, { color: d.color }]}>{d.changeLabel} (24h)</Text>
+      <View
+        style={[
+          styles.pill,
+          { backgroundColor: d.isUp ? theme.tint.up : theme.tint.down },
+        ]}
+      >
+        <Text style={[styles.change, { color: d.color }]}>
+          {d.changeLabel} (24h)
+        </Text>
       </View>
 
       <View style={styles.card}>
-        <Stat label="Market cap" value={`$${coin.market_cap.toLocaleString()}`} />
+        <Stat
+          label="Market cap"
+          value={`$${coin.market_cap.toLocaleString()}`}
+        />
         <View style={styles.divider} />
-        <Stat label="24h volume" value={`$${coin.total_volume.toLocaleString()}`} />
+        <Stat
+          label="24h volume"
+          value={`$${coin.total_volume.toLocaleString()}`}
+        />
       </View>
     </SafeAreaView>
   );
@@ -50,11 +63,24 @@ const styles = StyleSheet.create({
     padding: theme.space.xl,
     gap: theme.space.md,
   },
-  head: { alignItems: 'center', gap: theme.space.xs, marginTop: theme.space.lg },
+  head: {
+    alignItems: 'center',
+    gap: theme.space.xs,
+    marginTop: theme.space.lg,
+  },
   icon: { width: 72, height: 72, borderRadius: theme.radius.pill },
   name: { color: theme.color.text, fontSize: theme.font.h1, fontWeight: '800' },
-  symbol: { color: theme.color.muted, fontSize: theme.font.small, fontWeight: '600' },
-  price: { color: theme.color.text, fontSize: 32, fontWeight: '800', marginTop: theme.space.sm },
+  symbol: {
+    color: theme.color.muted,
+    fontSize: theme.font.small,
+    fontWeight: '600',
+  },
+  price: {
+    color: theme.color.text,
+    fontSize: 32,
+    fontWeight: '800',
+    marginTop: theme.space.sm,
+  },
   pill: {
     paddingHorizontal: theme.space.md,
     paddingVertical: theme.space.xs,
@@ -68,8 +94,20 @@ const styles = StyleSheet.create({
     padding: theme.space.lg,
     marginTop: theme.space.lg,
   },
-  stat: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  stat: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   statLabel: { color: theme.color.muted, fontSize: theme.font.small },
-  statValue: { color: theme.color.text, fontSize: theme.font.small, fontWeight: '600' },
-  divider: { height: 1, backgroundColor: theme.color.border, marginVertical: theme.space.md },
+  statValue: {
+    color: theme.color.text,
+    fontSize: theme.font.small,
+    fontWeight: '600',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: theme.color.border,
+    marginVertical: theme.space.md,
+  },
 });

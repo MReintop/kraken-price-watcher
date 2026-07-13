@@ -1,6 +1,8 @@
-import { getCoinDetails } from './PriceRowUtils';
+import { getCoinDetails } from './CoinCardUtils';
 import { Coin } from '../../types';
 
+// Test-data builder: gives each test a valid Coin and lets the Arrange step
+// state ONLY the field under test via overrides.
 const makeCoin = (overrides: Partial<Coin> = {}): Coin => ({
   id: 'bitcoin',
   name: 'Bitcoin',
