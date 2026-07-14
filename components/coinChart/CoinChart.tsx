@@ -28,12 +28,7 @@ export default function CoinChart({ coinId, livePrice }: CoinChartProps) {
   const [timeframe, setTimeframe] = useState<Timeframe>(Timeframe.Month);
   const { byTimeframe, status } = useCandles(coinId);
 
-  // Keep the dep a stable reference (the cached array or undefined); the `?? []`
-  // fallback lives inside the callback so it doesn't allocate a new array —
-  // and defeat the memo — on every render.
   const candles = byTimeframe?.[timeframe];
-  // Fold the live price into the last candle only when candles/price change,
-  // so a tick doesn't rebuild the whole (up to 365-element) series each render.
   const liveCandles = useMemo(
     () => applyLivePrice(candles ?? [], livePrice),
     [candles, livePrice],
@@ -57,7 +52,10 @@ export default function CoinChart({ coinId, livePrice }: CoinChartProps) {
             ]}
           >
             <Text
-              style={[styles.changeText, { color: changeColors(change >= 0).fg }]}
+              style={[
+                styles.changeText,
+                { color: changeColors(change >= 0).fg },
+              ]}
             >
               {formatSignedPct(change)}
             </Text>

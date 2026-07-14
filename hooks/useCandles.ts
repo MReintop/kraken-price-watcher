@@ -47,13 +47,11 @@ const initState = (coinId: string): CandlesState => {
 };
 
 // Fetch ALL timeframes once per coin (then the socket does the live updating).
-// Switching timeframe in the UI just picks from the returned map — no new fetch.
 export function useCandles(coinId: string): CandlesState {
   const [state, setState] = useState<CandlesState>(() => initState(coinId));
   const [trackedId, setTrackedId] = useState(coinId);
 
-  // Reset synchronously when the coin changes — React's recommended alternative
-  // to syncing state inside an effect (avoids a stale-data render + cascade).
+  // Reset synchronously when the coin changes
   if (coinId !== trackedId) {
     setTrackedId(coinId);
     setState(initState(coinId));
