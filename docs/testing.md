@@ -121,6 +121,8 @@ Flows tagged `stub` need it; the untagged ones run against the real Kraken. `npm
 
 `npm run test:coverage`. Thresholds are enforced in `jest.config.js` — with the two projects above, everything in the app is reachable by Jest, so unlike the web there's no exclusion list to maintain.
 
+**CI must run `test:coverage`, not `test`.** Jest only checks `coverageThreshold` when `--coverage` is passed, so under a bare `npm test` the thresholds are inert and a coverage regression sails through a green build.
+
 Maestro reports no coverage number. Its signal is pass/fail.
 
 ## Running them

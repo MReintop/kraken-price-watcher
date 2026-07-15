@@ -5,6 +5,12 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Each run boots an emulator for ~10 minutes and they queue behind each other, so
+# a superseded run is worth cancelling here more than anywhere else.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 # Maestro drives a real Android emulator here rather than EAS, for two reasons:
 # EAS's maestro job needs a paid plan, and on a cloud device `localhost` is the
 # device — so the fixture stub could never be reached. On a runner the emulator
@@ -16,6 +22,7 @@ on:
 # exercises the labels that matter.
 jobs:
   e2e:
+    name: End-to-end tests
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
