@@ -25,6 +25,7 @@
     "@testing-library/react-native": "^14.0.1",
     "@types/jest": "^30.0.0",
     "@types/react": "~19.2.2",
+    "eas-cli": "^21.0.1",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~57.0.0",
     "eslint-config-prettier": "^10.1.8",
@@ -33,7 +34,8 @@
     "jest-expo": "~57.0.1",
     "lint-staged": "^16.4.0",
     "prettier": "^3.9.5",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "ws": "^8.21.1"
   },
   "scripts": {
     "test": "jest",
@@ -46,7 +48,10 @@
     "test:coverage": "jest --coverage",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check:bundle": "node scripts/check-bundle-size.mjs"
+    "check:bundle": "node scripts/check-bundle-size.mjs",
+    "stub": "node e2e/stub/upstreams.mjs",
+    "test:e2e": "maestro test .maestro/ --exclude-tags=stub",
+    "test:e2e:stub": "maestro test .maestro/ --include-tags=stub"
   },
   "private": true,
   "lint-staged": {

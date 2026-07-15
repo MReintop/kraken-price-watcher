@@ -1,0 +1,30 @@
+# Tagged `stub` because it needs the fixture upstreams running on this machine:
+#   npm run stub          # then, in another shell:
+#   maestro test .maestro/live-ticks.yaml
+#
+# It cannot run on EAS. There the app runs on a cloud device, where `localhost`
+# is the device itself and no stub exists — and against the live market the
+# assertion below would be a coin flip, since a quiet minute means no tick.
+#
+# This is the flow only e2e can do: jest stubs the socket, so the app's own
+# WebSocket client is never exercised there.
+appId: com.mreintop.krakenpricewatcher
+tags:
+  - stub
+---
+- launchApp:
+    clearState: true
+
+- assertVisible: 'Bitcoin'
+
+# Seeded from Kraken's Ticker before the socket connects.
+- assertVisible: '$62,888'
+
+# Once subscribed, the badge flips.
+- assertVisible: 'Live'
+
+# The stub walks prices upward by a fixed step per tick, so the seeded value must
+# stop being current on its own — no interaction.
+- extendedWaitUntil:
+    notVisible: '$62,888'
+    timeout: 10000
