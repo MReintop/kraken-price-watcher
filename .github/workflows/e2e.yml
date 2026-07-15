@@ -72,6 +72,18 @@ jobs:
           done
           curl -sf "http://127.0.0.1:4001/kraken/Ticker?pair=XXBTZUSD" >/dev/null
 
+      # A debug APK carries no JS — it loads the bundle from Metro at run time,
+      # which is exactly why the app came up as a red "Unable to load script"
+      # screen the first time this ran.
+      - name: Start Metro
+        run: |
+          npx expo start --port 8081 &
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:8081/status >/dev/null && break
+            sleep 2
+          done
+          curl -sf http://127.0.0.1:8081/status
+
       # KVM is what makes the emulator usable rather than glacial.
       - name: Enable KVM
         run: |
@@ -90,6 +102,10 @@ jobs:
           disable-animations: true
           script: |
             adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            # The app looks for Metro on its own localhost:8081, which is the
+            # emulator, not the runner. The stub is reached at 10.0.2.2 instead
+            # because nothing in the app hardcodes its port the way Metro does.
+            adb reverse tcp:8081 tcp:8081
             maestro test .maestro/
 
       - name: Upload the report when a flow fails
