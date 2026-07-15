@@ -41,6 +41,10 @@ In a Maestro flow the markers matter more than anywhere else: nothing in YAML di
 
 **Do not use `@testing-library/react-native`.** RNTL and `react-test-renderer` are broken on this SDK — the renderer returns an empty tree, so every query fails with "unable to find" and looks like your component is wrong. Render through react-native-web in jsdom instead. Both packages are uninstalled deliberately; reinstalling one will appear to work right up until the tree comes back empty.
 
+**`test/setupComponents.ts` stubs `window.matchMedia`, and that is load-bearing.** jsdom doesn't implement it, and react-native-web reads `prefers-reduced-motion` through it — resolving **`true`** when it's absent. Without the stub, every animated component silently tests its reduced-motion path instead of the one it claims to, flipping a microtask into the test rather than at render. The symptom is an `act(...)` warning; the disease is a suite asserting the wrong branch. Never treat those warnings as noise.
+
+Components whose behaviour depends on the setting mock `useReducedMotion` outright, so the branch under test is stated rather than inherited from the environment. The OS query is asynchronous and leaves the process, which is exactly what the mocking rule above covers.
+
 `jest` and `jest-environment-jsdom` are declared directly. They used to arrive only as transitive dependencies of `jest-expo` — so the suite that exists to avoid that preset silently required it to be installed, and removing it took the runner and the jsdom environment with it. Keep both explicit.
 
 ## Which kind of test to write

@@ -145,6 +145,12 @@ describe('useCandles', () => {
     // Assert — one coin's candles must never be shown as another's
     expect(result.current.status).toBe(FetchStatus.Loading);
     expect(result.current.byTimeframe).toBeUndefined();
+
+    // The switch started a second fetch. Let it land inside the test rather
+    // than after it, where React counts the update as unacted-on.
+    await waitFor(() =>
+      expect(result.current.status).toBe(FetchStatus.Succeeded),
+    );
   });
 
   it('reports failure when the upstream rejects unrecoverably', async () => {

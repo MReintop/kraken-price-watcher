@@ -58,6 +58,7 @@ module.exports = {
       testEnvironment: 'jsdom',
       testMatch: ['**/*.test.tsx'],
       transform,
+      setupFiles: ['<rootDir>/test/setupComponents.ts'],
       // Render RN primitives as DOM via react-native-web; stub the icon font
       // and the (ESM) navigation package so tests don't transform them.
       moduleNameMapper: {
