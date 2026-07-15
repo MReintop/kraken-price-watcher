@@ -1,4 +1,5 @@
 import type { AppDispatch } from './store';
+import { subscribeAppState } from '../lib/appState';
 import {
   socketStatusChanged,
   subscriptionsSettled,
@@ -55,6 +56,7 @@ export function startKrakenTicker(
   let handshakeTimer: ReturnType<typeof setTimeout> | null = null;
   let backoff = 1000;
   let stopped = false;
+  let backgrounded = false;
   // Bumped per connection, so a frame from a socket we have already replaced can
   // be recognised and ignored rather than surfacing as fresh.
   let generation = 0;
@@ -94,7 +96,7 @@ export function startKrakenTicker(
   };
 
   const scheduleReconnect = () => {
-    if (stopped) return;
+    if (stopped || backgrounded) return;
     reconnectTimer = setTimeout(() => {
       backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
       connect();
@@ -212,10 +214,33 @@ export function startKrakenTicker(
     };
   };
 
+  // A backgrounded app is not a user watching prices. The OS may suspend or kill
+  // the socket anyway, and retrying against a suspended radio just spends
+  // battery to arrive at a price nobody read. `inactive` is deliberately not
+  // handled: it is the app switcher and notification shade, and tearing the feed
+  // down for a glance would reconnect on every one.
+  const unsubscribeAppState = subscribeAppState((next) => {
+    if (next === 'background' && !backgrounded) {
+      backgrounded = true;
+      reconnectTimer = stopTimer(reconnectTimer);
+      ws?.close();
+      return;
+    }
+
+    if (next === 'active' && backgrounded) {
+      backgrounded = false;
+      // A foreground is fresh intent, not the next step of a retry storm, and
+      // whatever is on screen is as old as the time spent away.
+      backoff = 1000;
+      connect();
+    }
+  });
+
   connect();
 
   return () => {
     stopped = true;
+    unsubscribeAppState();
     if (flushTimer) clearInterval(flushTimer);
     if (reconnectTimer) clearTimeout(reconnectTimer);
     staleTimer = stopTimer(staleTimer);

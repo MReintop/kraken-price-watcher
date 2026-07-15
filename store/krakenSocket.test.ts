@@ -5,6 +5,21 @@ import {
   subscriptionsSettled,
 } from './coinsSlice';
 import type { AppDispatch } from './store';
+import type { AppStateStatus } from '../lib/appState';
+
+// Mocked at the module boundary: the real one reaches for a native API, which
+// this project has no renderer for — and driving a background/foreground cycle
+// by hand is the only way to test the policy without a device.
+let mockAppStateListener: ((status: AppStateStatus) => void) | undefined;
+const mockUnsubscribeAppState = jest.fn();
+jest.mock('../lib/appState', () => ({
+  subscribeAppState: (onChange: (status: AppStateStatus) => void) => {
+    mockAppStateListener = onChange;
+    return mockUnsubscribeAppState;
+  },
+}));
+
+const sendAppTo = (status: AppStateStatus) => mockAppStateListener?.(status);
 
 // A stand-in for the browser WebSocket: records what was sent, and lets a test
 // drive onopen/onmessage/onclose by hand.
@@ -51,6 +66,8 @@ let dispatch: jest.Mock;
 beforeEach(() => {
   jest.useFakeTimers();
   FakeWebSocket.instances = [];
+  mockAppStateListener = undefined;
+  mockUnsubscribeAppState.mockClear();
   dispatch = jest.fn();
   globalThis.WebSocket = FakeWebSocket as unknown as typeof WebSocket;
 });
@@ -546,5 +563,72 @@ describe('startKrakenTicker', () => {
 
     // Assert
     expect(socket.closed).toBe(true);
+  });
+
+  describe('app lifecycle', () => {
+    it('drops the feed when the app goes to the background', () => {
+      // Arrange
+      startAndSubscribe();
+      const socket = latest();
+
+      // Act
+      sendAppTo('background');
+
+      // Assert
+      expect(socket.closed).toBe(true);
+    });
+
+    it('stops reconnecting while backgrounded', () => {
+      // Arrange
+      startAndSubscribe();
+      const opened = FakeWebSocket.instances.length;
+
+      // Act — the close it just caused would normally schedule a reconnect
+      sendAppTo('background');
+      latest().onclose?.();
+      jest.advanceTimersByTime(60_000);
+
+      // Assert — retrying against a suspended app spends battery for a price
+      // nobody is looking at
+      expect(FakeWebSocket.instances).toHaveLength(opened);
+    });
+
+    it('reconnects immediately when the app comes back', () => {
+      // Arrange
+      startAndSubscribe();
+      const opened = FakeWebSocket.instances.length;
+      sendAppTo('background');
+      latest().onclose?.();
+
+      // Act
+      sendAppTo('active');
+
+      // Assert — no backoff wait: returning is fresh intent, and the price on
+      // screen is as old as the time spent away
+      expect(FakeWebSocket.instances).toHaveLength(opened + 1);
+    });
+
+    it('ignores the app switcher, which is not backgrounding', () => {
+      // Arrange
+      startAndSubscribe();
+      const socket = latest();
+
+      // Act — iOS reports this for the switcher and the notification shade
+      sendAppTo('inactive');
+
+      // Assert — tearing the feed down for a glance would reconnect on each one
+      expect(socket.closed).toBe(false);
+    });
+
+    it('stops listening to the app state when the ticker is stopped', () => {
+      // Arrange
+      const stop = startAndSubscribe();
+
+      // Act
+      stop();
+
+      // Assert
+      expect(mockUnsubscribeAppState).toHaveBeenCalled();
+    });
   });
 });
