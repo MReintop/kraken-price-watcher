@@ -1,0 +1,98 @@
+name: E2E
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Maestro drives a real Android emulator here rather than EAS, for two reasons:
+# EAS's maestro job needs a paid plan, and on a cloud device `localhost` is the
+# device — so the fixture stub could never be reached. On a runner the emulator
+# and the stub share a host, which the emulator reaches at 10.0.2.2. That is what
+# makes the deterministic tick flow possible at all.
+#
+# iOS is absent on purpose: GitHub's macOS runners bill at a 10x multiplier, and
+# since Maestro selects through the accessibility layer, an Android run already
+# exercises the labels that matter.
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The emulator reaches the runner's loopback at 10.0.2.2. These are read at
+      # bundle time, so they must be set before the build below.
+      - name: Point the app at the fixture stub
+        run: |
+          {
+            echo "EXPO_PUBLIC_COINGECKO_BASE_URL=http://10.0.2.2:4001/coingecko"
+            echo "EXPO_PUBLIC_KRAKEN_BASE_URL=http://10.0.2.2:4001/kraken"
+            echo "EXPO_PUBLIC_KRAKEN_WS_URL=ws://10.0.2.2:4001/ws"
+          } >> "$GITHUB_ENV"
+
+      - name: Generate the native project
+        run: npx expo prebuild --platform android --no-install
+
+      # Debug, not release: Expo's generated debug manifest already permits
+      # cleartext (it has to reach Metro), so the stub is reachable over http
+      # without granting anything to a shippable build.
+      - name: Build the debug APK
+        run: ./gradlew assembleDebug --no-daemon
+        working-directory: android
+
+      - name: Install Maestro
+        run: |
+          curl -Ls https://get.maestro.mobile.dev | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Start the fixture upstreams
+        run: |
+          npm run stub &
+          for i in $(seq 1 30); do
+            curl -sf "http://127.0.0.1:4001/kraken/Ticker?pair=XXBTZUSD" >/dev/null && break
+            sleep 1
+          done
+          curl -sf "http://127.0.0.1:4001/kraken/Ticker?pair=XXBTZUSD" >/dev/null
+
+      # KVM is what makes the emulator usable rather than glacial.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run the flows
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            maestro test .maestro/
+
+      - name: Upload the report when a flow fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-report
+          path: ~/.maestro/tests/**
+          retention-days: 7

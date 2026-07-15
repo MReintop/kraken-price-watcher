@@ -1,5 +1,5 @@
-# Runs against the LIVE upstreams on EAS, so nothing here asserts an exact price
-# — only what is true whatever the market is doing.
+# Asserts shape rather than exact values, so it passes against the fixture stub
+# in CI and against the live market when run by hand.
 #
 # Maestro selects through the platform accessibility layer, so every selector is
 # text a screen reader can also reach. An element with no accessible name is
