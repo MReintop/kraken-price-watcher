@@ -19,7 +19,12 @@ const renderTwoCards = () => {
   const store = configureStore({
     reducer: { coins: coinsReducer },
     preloadedState: {
-      coins: { items: [BTC, ETH], status: FetchStatus.Succeeded, live: true },
+      coins: {
+        items: [BTC, ETH],
+        status: FetchStatus.Succeeded,
+        socket: 'live' as const,
+        unavailable: [],
+      },
     },
   });
 
@@ -45,9 +50,7 @@ describe('CoinCard re-render isolation', () => {
 
     // Act
     act(() => {
-      store.dispatch(
-        tickersApplied([{ symbol: 'BTC', last: 63000, changePct: 2 }]),
-      );
+      store.dispatch(tickersApplied([{ symbol: 'BTC', last: 63000 }]));
     });
 
     // Assert — the untouched row must not pay for its neighbour's tick
@@ -64,8 +67,8 @@ describe('CoinCard re-render isolation', () => {
     act(() => {
       store.dispatch(
         tickersApplied([
-          { symbol: 'BTC', last: 63000, changePct: 2 },
-          { symbol: 'ETH', last: 1900, changePct: 3 },
+          { symbol: 'BTC', last: 63000 },
+          { symbol: 'ETH', last: 1900 },
         ]),
       );
     });
@@ -84,13 +87,7 @@ describe('CoinCard re-render isolation', () => {
     // Act
     act(() => {
       store.dispatch(
-        tickersApplied([
-          {
-            symbol: 'BTC',
-            last: BTC.current_price,
-            changePct: BTC.price_change_percentage_24h,
-          },
-        ]),
+        tickersApplied([{ symbol: 'BTC', last: BTC.current_price }]),
       );
     });
 
@@ -106,9 +103,7 @@ describe('CoinCard re-render isolation', () => {
 
     // Act
     act(() => {
-      store.dispatch(
-        tickersApplied([{ symbol: 'DOGE', last: 0.5, changePct: 9 }]),
-      );
+      store.dispatch(tickersApplied([{ symbol: 'DOGE', last: 0.5 }]));
     });
 
     // Assert

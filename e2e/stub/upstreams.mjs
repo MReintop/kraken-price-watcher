@@ -196,8 +196,19 @@ function attachTickerSocket(server) {
 
     socket.on('message', (raw) => {
       const message = JSON.parse(String(raw));
-      if (message.method === 'subscribe') {
-        subscribed = message.params.symbol;
+      if (message.method !== 'subscribe') return;
+      subscribed = message.params.symbol;
+      // Kraken answers a subscribe once per symbol, naming it. The app waits for
+      // every one before it calls the feed live, so a stub that stays silent
+      // here is a stub the app correctly refuses to trust.
+      for (const symbol of subscribed) {
+        socket.send(
+          JSON.stringify({
+            method: 'subscribe',
+            success: true,
+            result: { channel: 'ticker', symbol },
+          }),
+        );
       }
     });
 
@@ -213,7 +224,18 @@ function attachTickerSocket(server) {
       socket.send(JSON.stringify({ channel: 'ticker', data }));
     }, TICK_MS);
 
-    socket.on('close', () => clearInterval(timer));
+    // Kraken heartbeats about once a second when nothing else is flowing, which
+    // is what lets the app tell a quiet market from a dead socket. Without it,
+    // slowing STUB_TICK_MS far enough would make the app correctly call the
+    // stub stale.
+    const heartbeat = setInterval(() => {
+      socket.send(JSON.stringify({ channel: 'heartbeat' }));
+    }, 1000);
+
+    socket.on('close', () => {
+      clearInterval(timer);
+      clearInterval(heartbeat);
+    });
   });
 }
 

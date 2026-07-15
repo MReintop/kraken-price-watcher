@@ -87,9 +87,7 @@ describe('PricesScreen (integration with a real store)', () => {
 
     // Act — what the socket does, minus the socket
     act(() => {
-      store.dispatch(
-        tickersApplied([{ symbol: 'BTC', last: 63500, changePct: 2 }]),
-      );
+      store.dispatch(tickersApplied([{ symbol: 'BTC', last: 63500 }]));
     });
 
     // Assert
@@ -104,9 +102,7 @@ describe('PricesScreen (integration with a real store)', () => {
 
     // Act
     act(() => {
-      store.dispatch(
-        tickersApplied([{ symbol: 'BTC', last: 70000, changePct: 1 }]),
-      );
+      store.dispatch(tickersApplied([{ symbol: 'BTC', last: 70000 }]));
     });
 
     // Assert — a casing mismatch here would silently show a stale price
@@ -121,9 +117,7 @@ describe('PricesScreen (integration with a real store)', () => {
 
     // Act
     act(() => {
-      store.dispatch(
-        tickersApplied([{ symbol: 'DOGE', last: 999, changePct: 5 }]),
-      );
+      store.dispatch(tickersApplied([{ symbol: 'DOGE', last: 999 }]));
     });
 
     // Assert
@@ -145,8 +139,8 @@ describe('PricesScreen (integration with a real store)', () => {
     act(() => {
       store.dispatch(
         tickersApplied([
-          { symbol: 'BTC', last: 11111, changePct: 1 },
-          { symbol: 'ETH', last: 22222, changePct: 2 },
+          { symbol: 'BTC', last: 11111 },
+          { symbol: 'ETH', last: 22222 },
         ]),
       );
     });

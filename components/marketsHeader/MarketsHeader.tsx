@@ -1,16 +1,17 @@
 import { View, Text, StyleSheet } from 'react-native';
 import LiveBadge from '../liveBadge/LiveBadge';
 import { theme } from '../../theme';
+import type { SocketStatus } from '../../store/coinsSlice';
 
 interface MarketsHeaderProps {
-  live: boolean;
+  status: SocketStatus;
 }
 
-export default function MarketsHeader({ live }: MarketsHeaderProps) {
+export default function MarketsHeader({ status }: MarketsHeaderProps) {
   return (
     <View style={styles.header}>
       <Text style={styles.title}>Markets</Text>
-      <LiveBadge live={live} />
+      <LiveBadge status={status} />
     </View>
   );
 }

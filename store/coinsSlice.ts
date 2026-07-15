@@ -3,23 +3,34 @@ import { Coin, FetchStatus } from '../types';
 import { fetchCoins as fetchCoinsFromApi } from '../lib/coins';
 import type { RootState } from './store';
 
+// An open socket is not a working feed. `live` means Kraken acknowledged the
+// subscription *and* has sent something since; `stale` is the dangerous state a
+// boolean cannot express — connected, believed healthy, and silently frozen.
+export type SocketStatus = 'connecting' | 'live' | 'stale' | 'offline';
+
 interface CoinsState {
   items: Coin[];
   status: FetchStatus;
   error?: string;
-  live: boolean; // Kraken WebSocket connected?
+  socket: SocketStatus;
+  // Symbols Kraken refused, or never answered for. Their prices are whatever
+  // CoinGecko last said and will not move.
+  unavailable: string[];
 }
 
 const initialState: CoinsState = {
   items: [],
   status: FetchStatus.Idle,
-  live: false,
+  socket: 'connecting',
+  unavailable: [],
 };
 
+// Price only. Kraken's `change_pct` is its own spot market while the 24h figure
+// on screen is CoinGecko's cross-exchange one — same window, different venue, so
+// taking it would swap the source under the label on the first tick.
 export interface KrakenTick {
   symbol: string; // base symbol, upper-case (e.g. "BTC")
   last: number;
-  changePct: number;
 }
 
 // rejectWithValue carries a message the error view can show as-is.
@@ -46,14 +57,20 @@ const coinsSlice = createSlice({
         const coin = state.items.find(
           (c) => c.symbol.toUpperCase() === tick.symbol,
         );
-        if (coin) {
+        // Re-assigning the same number would still churn the row for a price
+        // that has not changed, and repeat trades at one level are common.
+        if (coin && coin.current_price !== tick.last) {
           coin.current_price = tick.last;
-          coin.price_change_percentage_24h = tick.changePct;
         }
       }
     },
-    socketStatusChanged(state, action: PayloadAction<boolean>) {
-      state.live = action.payload;
+    socketStatusChanged(state, action: PayloadAction<SocketStatus>) {
+      state.socket = action.payload;
+    },
+    // Sent once per connection, when every symbol has been answered for or the
+    // handshake deadline has passed.
+    subscriptionsSettled(state, action: PayloadAction<string[]>) {
+      state.unavailable = action.payload;
     },
   },
   extraReducers: (builder) => {
@@ -73,13 +90,15 @@ const coinsSlice = createSlice({
   },
 });
 
-export const { tickersApplied, socketStatusChanged } = coinsSlice.actions;
+export const { tickersApplied, socketStatusChanged, subscriptionsSettled } =
+  coinsSlice.actions;
 export default coinsSlice.reducer;
 
 export const selectCoins = (s: RootState) => s.coins.items;
 export const selectCoinsStatus = (s: RootState) => s.coins.status;
 export const selectCoinsError = (s: RootState) => s.coins.error;
-export const selectLive = (s: RootState) => s.coins.live;
+export const selectSocketStatus = (s: RootState) => s.coins.socket;
+export const selectUnavailable = (s: RootState) => s.coins.unavailable;
 
 // Use with `shallowEqual` — this builds a new array every call, so a reference
 // check re-renders the whole list on every tick.
