@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+// Imported per family, not from the barrel: the barrel makes Metro emit every
+// icon font in the package — megabytes of them — for the two glyphs used here.
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { changeColors } from '../../theme';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 

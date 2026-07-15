@@ -28,6 +28,7 @@
         "projectId": "a5aa22d2-3472-4a4d-ba92-e97fb369d2bc"
       }
     },
-    "owner": "mariamr"
+    "owner": "mariamr",
+    "plugins": ["expo-font", "expo-status-bar"]
   }
 }

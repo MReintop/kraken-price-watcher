@@ -46,4 +46,12 @@ jobs:
           path: coverage/
           retention-days: 7
 
+      # Catches the drift a tilde range hides: package.json can look right while
+      # the lockfile reproduces an older, incompatible set.
+      - name: Expo compatibility
+        run: |
+          npx expo-doctor
+          npx expo install --check
+
+      # Exports the app, so this is also the release-build gate.
       - run: npm run check:bundle
