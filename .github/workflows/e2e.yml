@@ -111,10 +111,14 @@ jobs:
             # emulator, not the runner. The stub is reached at 10.0.2.2 instead
             # because nothing in the app hardcodes its port the way Metro does.
             adb reverse tcp:8081 tcp:8081
-            # Build the bundle before any flow launches the app: the first
-            # launch would otherwise sit on "Bundling..." past its timeout, and
-            # only the flow unlucky enough to run first would fail.
+            # Build the bundle, then run the app once and throw the run away.
+            # The first launch pays for Metro's first connection and the JIT, and
+            # whichever flow happened to run first would otherwise absorb that
+            # and fail on a blank screen — a queue position, not a defect.
             curl -s -o /dev/null "http://127.0.0.1:8081/index.bundle?platform=android&dev=true&minify=false"
+            adb shell monkey -p com.mreintop.krakenpricewatcher -c android.intent.category.LAUNCHER 1
+            sleep 30
+            adb shell am force-stop com.mreintop.krakenpricewatcher
             maestro test .maestro/
 
       - name: Upload the report when a flow fails
