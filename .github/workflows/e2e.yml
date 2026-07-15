@@ -126,6 +126,10 @@ jobs:
             adb shell monkey -p com.mreintop.krakenpricewatcher -c android.intent.category.LAUNCHER 1
             sleep 30
             adb shell am force-stop com.mreintop.krakenpricewatcher
+            # force-stop returns before the process is gone, and the first flow's
+            # clearState does a `pm clear` straight into that teardown — which
+            # fails the launch outright rather than any assertion.
+            sleep 5
             maestro test .maestro/
 
       - name: Upload the report when a flow fails

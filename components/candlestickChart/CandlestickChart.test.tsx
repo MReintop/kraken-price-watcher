@@ -70,4 +70,30 @@ describe('CandlestickChart', () => {
     );
     expect(screen.getByText('08:00')).toBeTruthy();
   });
+
+  it('reads out as one summary rather than a heap of rectangles', () => {
+    // Arrange
+    const candles = [
+      { t: 1_700_000_000_000, o: 100, h: 120, l: 90, c: 110 },
+      { t: 1_700_003_600_000, o: 110, h: 130, l: 80, c: 108 },
+    ];
+
+    // Act
+    render(
+      <CandlestickChart
+        candles={candles}
+        width={300}
+        height={200}
+        timeframe={Timeframe.Month}
+      />,
+    );
+
+    // Assert — an SVG of rects says nothing to a screen reader; this is the
+    // whole chart in one label
+    expect(
+      screen.getByLabelText(
+        'Price chart, last month. Opened at $100.00, up 8.00%, now $108.00. High $130.00, low $80.00.',
+      ),
+    ).toBeTruthy();
+  });
 });

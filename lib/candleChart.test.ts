@@ -9,6 +9,7 @@ import {
   formatAxisPrice,
   formatAxisTime,
   evenlySpacedIndices,
+  describeCandles,
 } from './candleChart';
 import { Candle, Timeframe } from '../types';
 
@@ -245,5 +246,60 @@ describe('formatAxisTime', () => {
   it('formats Year as month + week number', () => {
     // Arrange / Act / Assert
     expect(formatAxisTime(ts, Timeframe.Year)).toMatch(/^Jun W\d+$/);
+  });
+});
+
+describe('describeCandles', () => {
+  const series = [
+    { t: 0, o: 100, h: 120, l: 90, c: 110 },
+    { t: 1, o: 110, h: 130, l: 80, c: 108 },
+  ];
+
+  it('summarises the range, direction and extremes', () => {
+    // Arrange / Act
+    const result = describeCandles(series, Timeframe.Month);
+
+    // Assert — the shape a sighted user takes in at a glance
+    expect(result).toBe(
+      'Price chart, last month. Opened at $100.00, up 8.00%, now $108.00. High $130.00, low $80.00.',
+    );
+  });
+
+  it('says down when the period closed lower', () => {
+    // Arrange
+    const falling = [
+      { t: 0, o: 100, h: 100, l: 40, c: 90 },
+      { t: 1, o: 90, h: 95, l: 40, c: 50 },
+    ];
+
+    // Act
+    const result = describeCandles(falling, Timeframe.Day);
+
+    // Assert
+    expect(result).toContain('last 24 hours');
+    expect(result).toContain('down 50.00%');
+  });
+
+  it('finds the high and low across every candle, not just the ends', () => {
+    // Arrange — the extremes sit in the middle candle
+    const spiky = [
+      { t: 0, o: 100, h: 101, l: 99, c: 100 },
+      { t: 1, o: 100, h: 500, l: 10, c: 100 },
+      { t: 2, o: 100, h: 101, l: 99, c: 100 },
+    ];
+
+    // Act
+    const result = describeCandles(spiky, Timeframe.Year);
+
+    // Assert
+    expect(result).toContain('High $500.00, low $10.00');
+  });
+
+  it('says so rather than inventing a range when there is no data', () => {
+    // Arrange / Act
+    const result = describeCandles([], Timeframe.Month);
+
+    // Assert
+    expect(result).toBe('Price chart, last month. No data.');
   });
 });

@@ -1,4 +1,5 @@
 import { Candle, Timeframe } from '../types';
+import { formatPrice } from './formatPrice';
 
 // Display order; the values double as the button labels.
 export const TIMEFRAMES = Object.values(Timeframe);
@@ -28,6 +29,41 @@ export function periodChangePct(candles: Candle[]): number | null {
 
 export function formatSignedPct(pct: number): string {
   return `${pct >= 0 ? '▲' : '▼'} ${pct.toFixed(2)}%`;
+}
+
+// What the chart is worth saying out loud. A screen reader gets nothing from an
+// SVG of rectangles, and reading thirty candles one by one would be worse than
+// silence — the shape a sighted user takes in at a glance is the range, the
+// direction and the extremes.
+const PERIOD_LABEL: Record<Timeframe, string> = {
+  [Timeframe.Day]: 'last 24 hours',
+  [Timeframe.Month]: 'last month',
+  [Timeframe.Year]: 'last year',
+};
+
+export function describeCandles(
+  candles: Candle[],
+  timeframe: Timeframe,
+): string {
+  const period = PERIOD_LABEL[timeframe];
+  if (candles.length === 0) return `Price chart, ${period}. No data.`;
+
+  const open = candles[0].o;
+  const close = candles[candles.length - 1].c;
+  const high = Math.max(...candles.map((candle) => candle.h));
+  const low = Math.min(...candles.map((candle) => candle.l));
+  const change = periodChangePct(candles);
+
+  const direction =
+    change == null
+      ? ''
+      : ` ${change >= 0 ? 'up' : 'down'} ${Math.abs(change).toFixed(2)}%,`;
+
+  return (
+    `Price chart, ${period}.` +
+    ` Opened at ${formatPrice(open)},${direction} now ${formatPrice(close)}.` +
+    ` High ${formatPrice(high)}, low ${formatPrice(low)}.`
+  );
 }
 
 export interface PriceDomain {

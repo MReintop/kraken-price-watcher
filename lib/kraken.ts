@@ -11,8 +11,8 @@ interface KrakenEnvelope<T> {
   result: T;
 }
 
-async function krakenGet<T>(path: string): Promise<T> {
-  const response = await fetchWithRetry(`${KRAKEN_BASE}${path}`);
+async function krakenGet<T>(path: string, signal?: AbortSignal): Promise<T> {
+  const response = await fetchWithRetry(`${KRAKEN_BASE}${path}`, { signal });
   if (!response.ok) {
     throw new Error(`Kraken ${path}: HTTP ${response.status}`);
   }
@@ -57,10 +57,12 @@ type OhlcRow = [number, string, string, string, string, string, string, number];
 export async function fetchKrakenCandles(
   pair: string,
   timeframe: Timeframe,
+  signal?: AbortSignal,
 ): Promise<Candle[]> {
   const { interval, points } = TIMEFRAME_INTERVALS[timeframe];
   const result = await krakenGet<Record<string, OhlcRow[] | number>>(
     `/OHLC?pair=${pair}&interval=${interval}`,
+    signal,
   );
 
   const rows = Object.entries(result).find(([key]) => key !== 'last')?.[1];

@@ -76,6 +76,7 @@ On the web, accessibility is audited in Playwright with `makeAxeBuilder` — one
 - **Contrast** — `theme.contrast.test.tsx` computes WCAG contrast ratios over `theme.ts` directly. This is the one part of WCAG that transfers cleanly, because it's about colour, not markup.
 - **Labels and roles** — asserted per component in its own test, via the `accessibilityLabel` / `accessibilityRole` props.
 - **Reduced motion** — `useReducedMotion` is tested directly, and the animated components are tested for honouring it.
+- **The chart's summary** — `describeCandles` is a pure function with its own tests, and `CandlestickChart.test.tsx` asserts it actually reaches the tree. An SVG of rectangles says nothing to a screen reader, and reading thirty candles one by one would be worse than silence; the summary carries what a sighted user takes in at a glance — range, direction, extremes — as one node.
 - **Maestro flows** — a de-facto smoke test, because Maestro selects through the accessibility layer (below). An unlabelled element is invisible to it.
 
 **Two tools were evaluated and rejected**, both on dependency grounds rather than merit:
@@ -101,7 +102,7 @@ So we assert counts and bytes, which are deterministic:
 
 The real question for this app, not the generic comparison:
 
-1. **Detox's headline feature buys nothing here.** Detox's value is grey-box auto-waiting — it watches the JS thread, the native UI queue and the network, and acts only when idle. But it **cannot observe a WebSocket push**; Detox's own docs name that as the case where you fall back to manual `waitFor(...).withTimeout(...)`. A live ticker's core flow is exactly that. We'd pay Detox's setup cost and hand-write the waits anyway. The animated price transitions are also a live risk for the sync engine and would likely need `device.disableSynchronization()`, which removes what's left.
+1. **Detox's headline feature buys nothing here.** Detox's value is grey-box auto-waiting — it watches the JS thread, the native UI queue and the network, and acts only when idle. But it **cannot observe a WebSocket push**; Detox's own docs name that as the case where you fall back to manual `waitFor(...).withTimeout(...)`. A live ticker's core flow is exactly that, so we'd pay Detox's setup cost and hand-write the waits anyway.
 2. **Maestro drives through the accessibility layer**, and that's a feature given the section above. An element with no accessible label is invisible to Maestro, so writing a flow forces a label and the suite doubles as an accessibility smoke test. Detox's `by.id(testID)` happily addresses elements no screen reader can see.
 3. **Expo's tooling has standardised on Maestro** — first-class EAS Workflows support and a Maestro dashboard.
 
