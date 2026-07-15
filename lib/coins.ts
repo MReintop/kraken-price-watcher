@@ -7,10 +7,17 @@ const COINGECKO_BASE =
   process.env.EXPO_PUBLIC_COINGECKO_BASE_URL ??
   'https://api.coingecko.com/api/v3';
 
+// The instrument registry: CoinGecko's id, the base symbol the socket
+// subscribes by, and Kraken's REST pair. Holding all three locally is what lets
+// the socket start without waiting to be told which symbols exist.
+//
 // JSON, not a TS const: the e2e stub is a plain Node script and reads this same
 // list, so a second copy there would drift silently.
-export const TRACKED_COINS: readonly { id: string; pair: string }[] =
-  trackedCoins;
+export const TRACKED_COINS: readonly {
+  id: string;
+  symbol: string;
+  pair: string;
+}[] = trackedCoins;
 
 export const krakenPairFor = (id: string) =>
   TRACKED_COINS.find((coin) => coin.id === id)?.pair;
