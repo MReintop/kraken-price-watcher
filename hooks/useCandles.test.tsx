@@ -3,14 +3,13 @@ import { FetchStatus, Timeframe } from '../types';
 import { stubUpstreams } from '../test/upstreams';
 import { useCandles } from './useCandles';
 
-// Ids must be real coins, because the hook maps each to a Kraken pair — so they
-// repeat across tests, and the module-scope cache would leak between them.
-// Rather than reset the module (which would hand the hook a second copy of React
-// and make every hook call throw), the clock jumps past the TTL before each test,
-// so every entry the previous test left behind is already stale.
+// The id must be a real coin (the hook maps it to a Kraken pair), so every test
+// shares one and the hook's module-scope cache would leak between them. The
+// clock jumps past the TTL before each test instead, staling the previous test's
+// entries — resetting the module would hand the hook a second copy of React.
 const CACHE_TTL_MS = 5 * 60 * 1000;
+const COIN_ID = 'bitcoin';
 let clock = 1_700_000_000_000;
-const uniqueCoinId = () => 'bitcoin';
 
 const mockFetch = () => stubUpstreams();
 
@@ -25,10 +24,9 @@ describe('useCandles', () => {
   it('starts loading, then succeeds with a series per timeframe', async () => {
     // Arrange
     mockFetch();
-    const coinId = uniqueCoinId();
 
     // Act
-    const { result } = renderHook(() => useCandles(coinId));
+    const { result } = renderHook(() => useCandles(COIN_ID));
 
     // Assert
     expect(result.current.status).toBe(FetchStatus.Loading);
@@ -45,10 +43,9 @@ describe('useCandles', () => {
   it('maps the upstream rows into candles', async () => {
     // Arrange
     mockFetch();
-    const coinId = uniqueCoinId();
 
     // Act
-    const { result } = renderHook(() => useCandles(coinId));
+    const { result } = renderHook(() => useCandles(COIN_ID));
     await waitFor(() =>
       expect(result.current.status).toBe(FetchStatus.Succeeded),
     );
@@ -62,10 +59,9 @@ describe('useCandles', () => {
   it('fetches every timeframe once, not once per render', async () => {
     // Arrange
     const fetchMock = mockFetch();
-    const coinId = uniqueCoinId();
 
     // Act
-    const { result, rerender } = renderHook(() => useCandles(coinId));
+    const { result, rerender } = renderHook(() => useCandles(COIN_ID));
     await waitFor(() =>
       expect(result.current.status).toBe(FetchStatus.Succeeded),
     );
@@ -78,15 +74,14 @@ describe('useCandles', () => {
   it('serves a second visit from cache without refetching', async () => {
     // Arrange
     const fetchMock = mockFetch();
-    const coinId = uniqueCoinId();
-    const first = renderHook(() => useCandles(coinId));
+    const first = renderHook(() => useCandles(COIN_ID));
     await waitFor(() =>
       expect(first.result.current.status).toBe(FetchStatus.Succeeded),
     );
     first.unmount();
 
     // Act — the same coin again
-    const second = renderHook(() => useCandles(coinId));
+    const second = renderHook(() => useCandles(COIN_ID));
 
     // Assert — cached candles are there on render one, with no spinner
     expect(second.result.current.status).toBe(FetchStatus.Succeeded);
@@ -97,8 +92,7 @@ describe('useCandles', () => {
   it('refetches once the cached entry has expired', async () => {
     // Arrange
     const fetchMock = mockFetch();
-    const coinId = uniqueCoinId();
-    const first = renderHook(() => useCandles(coinId));
+    const first = renderHook(() => useCandles(COIN_ID));
     await waitFor(() =>
       expect(first.result.current.status).toBe(FetchStatus.Succeeded),
     );
@@ -106,7 +100,7 @@ describe('useCandles', () => {
 
     // Act — step past the 5 minute TTL
     clock += CACHE_TTL_MS + 1;
-    const second = renderHook(() => useCandles(coinId));
+    const second = renderHook(() => useCandles(COIN_ID));
     await waitFor(() =>
       expect(second.result.current.status).toBe(FetchStatus.Succeeded),
     );
@@ -160,10 +154,9 @@ describe('useCandles', () => {
       status: 404,
       headers: { get: (): string | null => null },
     }) as unknown as typeof fetch;
-    const coinId = uniqueCoinId();
 
     // Act
-    const { result } = renderHook(() => useCandles(coinId));
+    const { result } = renderHook(() => useCandles(COIN_ID));
 
     // Assert
     await waitFor(() => expect(result.current.status).toBe(FetchStatus.Failed));
@@ -174,10 +167,9 @@ describe('useCandles', () => {
     globalThis.fetch = jest
       .fn()
       .mockRejectedValue(new Error('offline')) as unknown as typeof fetch;
-    const coinId = uniqueCoinId();
 
     // Act
-    const { result } = renderHook(() => useCandles(coinId));
+    const { result } = renderHook(() => useCandles(COIN_ID));
 
     // Assert
     await waitFor(() => expect(result.current.status).toBe(FetchStatus.Failed));
@@ -187,8 +179,7 @@ describe('useCandles', () => {
     // Arrange
     const fetchMock = jest.fn().mockRejectedValue(new Error('offline'));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
-    const coinId = uniqueCoinId();
-    const first = renderHook(() => useCandles(coinId));
+    const first = renderHook(() => useCandles(COIN_ID));
     await waitFor(() =>
       expect(first.result.current.status).toBe(FetchStatus.Failed),
     );
@@ -196,7 +187,7 @@ describe('useCandles', () => {
 
     // Act — the upstream recovers; the retry must actually reach it
     const recovered = stubUpstreams();
-    const second = renderHook(() => useCandles(coinId));
+    const second = renderHook(() => useCandles(COIN_ID));
     await waitFor(() =>
       expect(second.result.current.status).toBe(FetchStatus.Succeeded),
     );

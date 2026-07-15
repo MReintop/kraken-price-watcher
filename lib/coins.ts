@@ -7,21 +7,16 @@ const COINGECKO_BASE =
   process.env.EXPO_PUBLIC_COINGECKO_BASE_URL ??
   'https://api.coingecko.com/api/v3';
 
-// CoinGecko says what a coin *is*; Kraken says what it is *worth*. The pair is
-// Kraken's own canonical name, which is what its responses are keyed by.
-//
-// JSON, not a TS const, because the e2e stub is a plain Node script and has to
-// read the same list — a second copy there would drift silently.
+// JSON, not a TS const: the e2e stub is a plain Node script and reads this same
+// list, so a second copy there would drift silently.
 export const TRACKED_COINS: readonly { id: string; pair: string }[] =
   trackedCoins;
 
 export const krakenPairFor = (id: string) =>
   TRACKED_COINS.find((coin) => coin.id === id)?.pair;
 
-// The 24h change comes from here too: Kraken's REST ticker cannot express one
-// (its only reference point is today's open), while its socket sends a true 24h
-// figure. Seeding from CoinGecko keeps the window the same before and after the
-// socket connects — otherwise the number visibly flips sign on first tick.
+// The 24h change comes from here too: Kraken's REST ticker has no true 24h
+// reference, only today's open, so seeding from it flips sign on the first tick.
 type CoinMetadata = Pick<
   Coin,
   | 'id'

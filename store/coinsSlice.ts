@@ -81,10 +81,9 @@ export const selectCoinsStatus = (s: RootState) => s.coins.status;
 export const selectCoinsError = (s: RootState) => s.coins.error;
 export const selectLive = (s: RootState) => s.coins.live;
 
-// Fine-grained selectors for the live list:
-// - the screen subscribes to just the id list (use with `shallowEqual` so it
-//   only re-renders when a coin is added/removed, not on price ticks)
-// - each row subscribes to its own coin, so one tick re-renders only that row
+// Use with `shallowEqual` — this builds a new array every call, so a reference
+// check re-renders the whole list on every tick.
 export const selectCoinIds = (s: RootState) => s.coins.items.map((c) => c.id);
+// Per-coin, so a tick re-renders only that coin's row.
 export const selectCoinById = (id: string) => (s: RootState) =>
   s.coins.items.find((c) => c.id === id);

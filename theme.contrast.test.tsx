@@ -1,13 +1,9 @@
 import { theme, changeColors } from './theme';
 
 // Named .tsx despite rendering nothing: the extension picks the Jest project,
-// and only `components` maps react-native/@react-navigation to stubs — which
-// theme.ts imports, so the node project cannot even parse it.
-//
-// There is no axe for React Native, so the contrast rule is asserted directly.
-// Thresholds are WCAG's: 4.5:1 for body text, 3:1 for non-text UI (spinners,
-// icons). The maths is the same on any platform even though WCAG itself is a web
-// standard — a screen reader user's eyes do not know which renderer drew this.
+// and only `components` stubs the react-native imports theme.ts pulls in.
+
+// WCAG thresholds: 4.5:1 body text, 3:1 non-text UI (spinners, icons).
 const RATIO_TEXT = 4.5;
 const RATIO_NON_TEXT = 3;
 
