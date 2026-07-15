@@ -5,7 +5,11 @@ import AnimatedPrice from '../animatedPrice/AnimatedPrice';
 import PriceTickIndicator from '../priceTickIndicator/PriceTickIndicator';
 import { theme, changeColors } from '../../theme';
 
-export default function CoinHeader({ coin }: { coin: Coin }) {
+interface CoinHeaderProps {
+  coin: Coin;
+}
+
+export default function CoinHeader({ coin }: CoinHeaderProps) {
   const details = getCoinDetails(coin);
   const change = changeColors(details.isUp);
 

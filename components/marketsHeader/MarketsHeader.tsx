@@ -2,7 +2,11 @@ import { View, Text, StyleSheet } from 'react-native';
 import LiveBadge from '../liveBadge/LiveBadge';
 import { theme } from '../../theme';
 
-export default function MarketsHeader({ live }: { live: boolean }) {
+interface MarketsHeaderProps {
+  live: boolean;
+}
+
+export default function MarketsHeader({ live }: MarketsHeaderProps) {
   return (
     <View style={styles.header}>
       <Text style={styles.title}>Markets</Text>

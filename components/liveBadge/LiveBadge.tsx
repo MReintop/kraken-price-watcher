@@ -1,7 +1,11 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { theme } from '../../theme';
 
-export default function LiveBadge({ live }: { live: boolean }) {
+interface LiveBadgeProps {
+  live: boolean;
+}
+
+export default function LiveBadge({ live }: LiveBadgeProps) {
   return (
     <View style={styles.live}>
       <View
