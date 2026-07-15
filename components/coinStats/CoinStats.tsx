@@ -16,7 +16,10 @@ export default function CoinStats({ coin }: { coin: Coin }) {
     <View style={styles.card}>
       <Stat label="Market cap" value={`$${coin.market_cap.toLocaleString()}`} />
       <View style={styles.divider} />
-      <Stat label="24h volume" value={`$${coin.total_volume.toLocaleString()}`} />
+      <Stat
+        label="24h volume"
+        value={`$${coin.total_volume.toLocaleString()}`}
+      />
     </View>
   );
 }
@@ -35,7 +38,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   label: { color: theme.color.muted, fontSize: theme.font.small },
-  value: { color: theme.color.text, fontSize: theme.font.small, fontWeight: '600' },
+  value: {
+    color: theme.color.text,
+    fontSize: theme.font.small,
+    fontWeight: '600',
+  },
   divider: {
     height: 1,
     backgroundColor: theme.color.border,

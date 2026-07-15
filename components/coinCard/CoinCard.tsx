@@ -29,6 +29,7 @@ export default function CoinCard({ coinId, onSelect }: CoinCardProps) {
     <Pressable
       onPress={onSelect}
       accessibilityRole="button"
+      accessibilityLabel={coinDetails.a11yLabel}
       style={(state) => {
         const { pressed, hovered } = state as WebPressableState;
         return [
@@ -43,7 +44,9 @@ export default function CoinCard({ coinId, onSelect }: CoinCardProps) {
         <Image
           source={{ uri: coin.image }}
           style={styles.icon}
-          accessibilityLabel={`${coinDetails.name} icon`}
+          accessibilityElementsHidden
+          importantForAccessibility="no"
+          alt=""
         />
         <View style={styles.identity}>
           <Text style={styles.name} numberOfLines={1}>
@@ -84,9 +87,21 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: theme.space.sm },
   icon: { width: 32, height: 32, borderRadius: theme.radius.pill },
   identity: { flexShrink: 1 },
-  name: { color: theme.color.text, fontSize: theme.font.body, fontWeight: '700' },
-  symbol: { color: theme.color.muted, fontSize: theme.font.caption, fontWeight: '500' },
-  price: { color: theme.color.text, fontSize: theme.font.h2, fontWeight: '800' },
+  name: {
+    color: theme.color.text,
+    fontSize: theme.font.body,
+    fontWeight: '700',
+  },
+  symbol: {
+    color: theme.color.muted,
+    fontSize: theme.font.caption,
+    fontWeight: '500',
+  },
+  price: {
+    color: theme.color.text,
+    fontSize: theme.font.h2,
+    fontWeight: '800',
+  },
   pill: {
     alignSelf: 'flex-start', // hug the change text, don't stretch full width
     paddingHorizontal: theme.space.sm,

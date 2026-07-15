@@ -8,7 +8,10 @@ interface TimeframeSelectorProps {
   onChange: (tf: Timeframe) => void;
 }
 
-export default function TimeframeSelector({ value, onChange }: TimeframeSelectorProps) {
+export default function TimeframeSelector({
+  value,
+  onChange,
+}: TimeframeSelectorProps) {
   return (
     <View style={styles.row}>
       {TIMEFRAMES.map((tf) => {
@@ -40,6 +43,10 @@ const styles = StyleSheet.create({
     backgroundColor: theme.color.surface,
   },
   chipSelected: { backgroundColor: theme.color.accent },
-  label: { color: theme.color.muted, fontSize: theme.font.small, fontWeight: '600' },
+  label: {
+    color: theme.color.muted,
+    fontSize: theme.font.small,
+    fontWeight: '600',
+  },
   labelSelected: { color: theme.color.text },
 });

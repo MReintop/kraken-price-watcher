@@ -1,22 +1,20 @@
 import { useEffect, useState } from 'react';
 import { Animated, Easing, StyleProp, Text, TextStyle } from 'react-native';
 import { formatPrice } from '../../lib/formatPrice';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 interface AnimatedPriceProps {
   value: number;
   style?: StyleProp<TextStyle>;
 }
 
-
 export default function AnimatedPrice({ value, style }: AnimatedPriceProps) {
-  // Lazy state initializer constructs the Animated.Value exactly once and keeps
-  // a stable reference — without reading/writing a ref during render.
+  const reducedMotion = useReducedMotion();
+  // Lazy initializer: constructed once, and readable during render (a ref is not).
   const [animated] = useState(() => new Animated.Value(value));
   const [text, setText] = useState(() => formatPrice(value));
 
-  // Mirror the animated value into React state as formatted text. Only
-  // re-render when the *formatted* string changes (not every ~60fps frame),
-  // so the tween drives at most a handful of updates per second.
+  // Re-render only when the *formatted* string changes, not on every frame.
   useEffect(() => {
     const id = animated.addListener(({ value: v }) => {
       const next = formatPrice(v);
@@ -26,6 +24,12 @@ export default function AnimatedPrice({ value, style }: AnimatedPriceProps) {
   }, [animated]);
 
   useEffect(() => {
+    // Reduced motion means no tween at all, not a faster one.
+    if (reducedMotion) {
+      animated.setValue(value);
+      return;
+    }
+
     const anim = Animated.timing(animated, {
       toValue: value,
       duration: 1000,
@@ -34,7 +38,7 @@ export default function AnimatedPrice({ value, style }: AnimatedPriceProps) {
     });
     anim.start();
     return () => anim.stop();
-  }, [value, animated]);
+  }, [value, animated, reducedMotion]);
 
   return <Text style={style}>{text}</Text>;
 }

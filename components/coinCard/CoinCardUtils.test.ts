@@ -50,4 +50,49 @@ describe('getCoinDetails', () => {
     expect(result.isUp).toBe(true);
     expect(result.changeLabel).toBe('▲ 2.50%');
   });
+
+  it('labels a loss without repeating the sign', () => {
+    // Arrange
+    const coin = makeCoin({ price_change_percentage_24h: -1.45 });
+
+    // Act
+    const result = getCoinDetails(coin);
+
+    // Assert — the arrow already says it; "▼ -1.45%" says it twice
+    expect(result.changeLabel).toBe('▼ 1.45%');
+  });
+
+  it('speaks a loss in words, since a screen reader cannot read an arrow', () => {
+    // Arrange
+    const coin = makeCoin({
+      name: 'Bitcoin',
+      current_price: 62888,
+      price_change_percentage_24h: -1.45,
+    });
+
+    // Act
+    const result = getCoinDetails(coin);
+
+    // Assert
+    expect(result.a11yLabel).toBe(
+      'Bitcoin, $62,888, down 1.45% in the last 24 hours',
+    );
+  });
+
+  it('speaks a gain in words', () => {
+    // Arrange
+    const coin = makeCoin({
+      name: 'Solana',
+      current_price: 142.5,
+      price_change_percentage_24h: 5.1,
+    });
+
+    // Act
+    const result = getCoinDetails(coin);
+
+    // Assert
+    expect(result.a11yLabel).toBe(
+      'Solana, $142.5, up 5.10% in the last 24 hours',
+    );
+  });
 });

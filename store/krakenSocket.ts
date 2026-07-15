@@ -1,7 +1,9 @@
 import type { AppDispatch } from './store';
 import { socketStatusChanged, tickersApplied, KrakenTick } from './coinsSlice';
 
-const WS_URL = 'wss://ws.kraken.com/v2';
+// Overridable so e2e can point the app at a stub socket.
+const WS_URL =
+  process.env.EXPO_PUBLIC_KRAKEN_WS_URL ?? 'wss://ws.kraken.com/v2';
 const FLUSH_MS = 250; // coalesce ticks into at most one dispatch per 250ms
 
 interface KrakenTickerMessage {

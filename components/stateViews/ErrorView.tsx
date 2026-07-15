@@ -28,7 +28,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   retry: {
-    color: theme.color.accent,
+    color: theme.color.accentText,
     fontSize: theme.font.small,
     fontWeight: '600',
   },

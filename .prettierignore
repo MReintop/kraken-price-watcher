@@ -1,0 +1,8 @@
+# Generated / vendored — not ours to format.
+node_modules/
+coverage/
+dist/
+.expo/
+android/
+ios/
+package-lock.json

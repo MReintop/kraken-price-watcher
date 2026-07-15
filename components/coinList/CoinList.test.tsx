@@ -21,7 +21,9 @@ const makeCoin = (overrides: Partial<Coin> = {}): Coin => ({
 const setupStore = (items: Coin[]) =>
   configureStore({
     reducer: { coins: coinsReducer },
-    preloadedState: { coins: { items, status: FetchStatus.Succeeded, live: true } },
+    preloadedState: {
+      coins: { items, status: FetchStatus.Succeeded, live: true },
+    },
   });
 
 // Act helper: render the list of the given coins against a preloaded store.

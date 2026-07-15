@@ -22,7 +22,7 @@ type Props = NativeStackScreenProps<RootStackParamList, NavigateKey.Prices>;
 
 export default function PricesScreen({ navigation }: Props) {
   const dispatch = useAppDispatch();
-  // Subscribe to just the id list — with shallowEqual this only re-renders if actual data changes
+  // shallowEqual: the ids are a new array each call, so identity would always differ.
   const coinIds = useAppSelector(selectCoinIds, shallowEqual);
   const status = useAppSelector(selectCoinsStatus);
   const error = useAppSelector(selectCoinsError);

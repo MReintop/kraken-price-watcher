@@ -13,14 +13,14 @@ A small cross-platform crypto price watcher built with **Expo** and **React Nati
 
 ## Tech stack
 
-| Area | Choice |
-| --- | --- |
-| Framework | Expo SDK 57, React Native 0.86, React 19 |
-| Language | TypeScript |
-| State | Redux Toolkit + React-Redux (with a listener middleware driving the socket) |
-| Navigation | React Navigation (native stack) |
-| Charts | react-native-svg (custom candlestick renderer) |
-| Testing | Jest (two-project setup) + Testing Library |
+| Area       | Choice                                                                      |
+| ---------- | --------------------------------------------------------------------------- |
+| Framework  | Expo SDK 57, React Native 0.86, React 19                                    |
+| Language   | TypeScript                                                                  |
+| State      | Redux Toolkit + React-Redux (with a listener middleware driving the socket) |
+| Navigation | React Navigation (native stack)                                             |
+| Charts     | react-native-svg (custom candlestick renderer)                              |
+| Testing    | Jest (two-project setup) + Testing Library                                  |
 
 ## Getting started
 

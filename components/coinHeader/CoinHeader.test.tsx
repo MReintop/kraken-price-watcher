@@ -29,7 +29,8 @@ describe('CoinHeader', () => {
     // Assert
     expect(screen.getByText('Bitcoin')).toBeTruthy();
     expect(screen.getByText('BTC')).toBeTruthy();
-    expect(screen.getByText('▼ -1.45% (24h)')).toBeTruthy();
+    // The arrow carries the sign; "▼ -1.45%" would say it twice.
+    expect(screen.getByText('▼ 1.45% (24h)')).toBeTruthy();
   });
 
   it('renders the current price', () => {

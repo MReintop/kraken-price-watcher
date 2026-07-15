@@ -15,17 +15,15 @@ const startAppListening = listenerMiddleware.startListening.withTypes<
 
 let stopSocket: (() => void) | undefined;
 
-// When the first CoinGecko load succeeds, we know the symbol set — start the
-// live Kraken socket once, then unsubscribe so later refetches don't re-open it.
+// The first successful load is what reveals the symbol set, so the socket starts
+// here — once, then unsubscribes so later refetches don't re-open it.
 startAppListening({
   actionCreator: fetchCoins.fulfilled,
   effect: (action, listenerApi) => {
     if (stopSocket) return;
 
-    // Map all current symbols
     const symbols = action.payload.map((c) => c.symbol);
 
-    // set function for stopping socket
     stopSocket = startKrakenTicker(symbols, listenerApi.dispatch);
     listenerApi.unsubscribe();
   },

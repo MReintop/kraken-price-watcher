@@ -1,7 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { theme } from '../../theme';
 
-// Dot + label showing whether the Kraken price stream is connected.
 export default function LiveBadge({ live }: { live: boolean }) {
   return (
     <View style={styles.live}>

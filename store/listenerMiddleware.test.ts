@@ -51,7 +51,10 @@ describe('listenerMiddleware — Kraken socket lifecycle', () => {
     // Act
     store.dispatch(
       fetchCoins.fulfilled(
-        [makeCoin({ symbol: 'btc' }), makeCoin({ id: 'ethereum', symbol: 'eth' })],
+        [
+          makeCoin({ symbol: 'btc' }),
+          makeCoin({ id: 'ethereum', symbol: 'eth' }),
+        ],
         'req-1',
         undefined,
       ),

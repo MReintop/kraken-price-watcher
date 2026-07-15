@@ -1,9 +1,7 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { Coin, FetchStatus } from '../types';
+import { fetchCoins as fetchCoinsFromApi } from '../lib/coins';
 import type { RootState } from './store';
-
-const MARKETS_URL =
-  'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=bitcoin,ethereum,solana,cardano,ripple,dogecoin,polkadot,chainlink&price_change_percentage=24h';
 
 interface CoinsState {
   items: Coin[];
@@ -24,16 +22,14 @@ export interface KrakenTick {
   changePct: number;
 }
 
-// Thunk: fetch the market list. rejectWithValue carries a user-friendly message.
+// rejectWithValue carries a message the error view can show as-is.
 export const fetchCoins = createAsyncThunk<
   Coin[],
   void,
   { rejectValue: string }
 >('coins/fetch', async (_, { rejectWithValue }) => {
   try {
-    const res = await fetch(MARKETS_URL);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return (await res.json()) as Coin[];
+    return await fetchCoinsFromApi();
   } catch (e) {
     return rejectWithValue(
       e instanceof Error ? e.message : 'Failed to load prices',
@@ -45,7 +41,6 @@ const coinsSlice = createSlice({
   name: 'coins',
   initialState,
   reducers: {
-    // Merge a batch of live ticks (already coalesced/throttled by the socket).
     tickersApplied(state, action: PayloadAction<KrakenTick[]>) {
       for (const tick of action.payload) {
         const coin = state.items.find(
@@ -81,7 +76,6 @@ const coinsSlice = createSlice({
 export const { tickersApplied, socketStatusChanged } = coinsSlice.actions;
 export default coinsSlice.reducer;
 
-// Selectors
 export const selectCoins = (s: RootState) => s.coins.items;
 export const selectCoinsStatus = (s: RootState) => s.coins.status;
 export const selectCoinsError = (s: RootState) => s.coins.error;

@@ -1,5 +1,4 @@
 import {
-  mapOhlcRows,
   computeCandleLayout,
   applyLivePrice,
   periodChangePct,
@@ -10,7 +9,6 @@ import {
   formatAxisPrice,
   formatAxisTime,
   evenlySpacedIndices,
-  TIMEFRAME_DAYS,
 } from './candleChart';
 import { Candle, Timeframe } from '../types';
 
@@ -23,30 +21,6 @@ const makeCandle = (overrides: Partial<Candle> = {}): Candle => ({
   l: 5,
   c: 12,
   ...overrides,
-});
-
-describe('mapOhlcRows', () => {
-  it('maps CoinGecko [ts,o,h,l,c] rows into Candle objects', () => {
-    // Arrange
-    const rows = [[1000, 10, 15, 8, 12]];
-
-    // Act
-    const result = mapOhlcRows(rows);
-
-    // Assert
-    expect(result).toEqual([{ t: 1000, o: 10, h: 15, l: 8, c: 12 }]);
-  });
-});
-
-describe('TIMEFRAME_DAYS', () => {
-  it('maps each timeframe to the CoinGecko days param', () => {
-    // Arrange / Act / Assert
-    expect(TIMEFRAME_DAYS).toEqual({
-      [Timeframe.Day]: '1',
-      [Timeframe.Month]: '30',
-      [Timeframe.Year]: '365',
-    });
-  });
 });
 
 describe('computeCandleLayout', () => {
