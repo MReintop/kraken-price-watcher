@@ -1,8 +1,8 @@
-// Two Jest projects, both bypassing the jest-expo preset (its Expo "winter"
-// runtime fails to load under Jest on this SDK):
+// No Expo preset: its "winter" runtime fails to load under Jest on this SDK, so
+// both projects configure the transform themselves.
 //   • logic      → pure *.test.ts, node env, Babel type-strip
 //   • components → *.test.tsx rendered through react-native-web in jsdom
-//                  (the working alternative to the broken RNTL/jest-expo renderer)
+//                  (the working alternative to the broken RNTL renderer)
 const tsPreset = require.resolve('@babel/preset-typescript');
 const reactPreset = require.resolve('@babel/preset-react');
 const modulesCjs = require.resolve('@babel/plugin-transform-modules-commonjs');
@@ -40,6 +40,12 @@ module.exports = {
     '<rootDir>/test/', // mocks are executed via moduleNameMapper
     '<rootDir>/coverage/',
   ],
+  // Set a few points under current, so a real regression trips them but ordinary
+  // churn doesn't. Raise them when the real number rises; a floor nobody can
+  // cross is not a floor.
+  coverageThreshold: {
+    global: { statements: 92, branches: 84, functions: 90, lines: 94 },
+  },
   projects: [
     {
       displayName: 'logic',
