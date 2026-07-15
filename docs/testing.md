@@ -101,7 +101,7 @@ So we assert counts and bytes, which are deterministic:
 
 The real question for this app, not the generic comparison:
 
-1. **Detox's headline feature buys nothing here.** Detox's value is grey-box auto-waiting — it watches the JS thread, the native UI queue and the network, and acts only when idle. But it **cannot observe a WebSocket push**; Detox's own docs name that as the case where you fall back to manual `waitFor(...).withTimeout(...)`. A live ticker's core flow is exactly that. We'd pay Detox's setup cost and hand-write the waits anyway. The animated price transitions are also a live risk for the sync engine and would likely need `device.disableSynchronization()`, which removes what's left.
+1. **Detox's headline feature buys nothing here.** Detox's value is grey-box auto-waiting — it watches the JS thread, the native UI queue and the network, and acts only when idle. But it **cannot observe a WebSocket push**; Detox's own docs name that as the case where you fall back to manual `waitFor(...).withTimeout(...)`. A live ticker's core flow is exactly that, so we'd pay Detox's setup cost and hand-write the waits anyway.
 2. **Maestro drives through the accessibility layer**, and that's a feature given the section above. An element with no accessible label is invisible to Maestro, so writing a flow forces a label and the suite doubles as an accessibility smoke test. Detox's `by.id(testID)` happily addresses elements no screen reader can see.
 3. **Expo's tooling has standardised on Maestro** — first-class EAS Workflows support and a Maestro dashboard.
 
