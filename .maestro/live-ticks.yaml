@@ -26,4 +26,4 @@ tags:
 # stop being current on its own — no interaction.
 - extendedWaitUntil:
     notVisible: '$62,888'
-    timeout: 10000
+    timeout: 20000

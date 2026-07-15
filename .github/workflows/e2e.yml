@@ -63,7 +63,12 @@ jobs:
           curl -Ls https://get.maestro.mobile.dev | bash
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
 
+      # A tick a second overwrites the seeded price before a flow can see it,
+      # which is what failed live-ticks the first time. Slow enough to observe,
+      # fast enough that the flow's own wait still catches the change.
       - name: Start the fixture upstreams
+        env:
+          STUB_TICK_MS: '5000'
         run: |
           npm run stub &
           for i in $(seq 1 30); do
@@ -106,6 +111,10 @@ jobs:
             # emulator, not the runner. The stub is reached at 10.0.2.2 instead
             # because nothing in the app hardcodes its port the way Metro does.
             adb reverse tcp:8081 tcp:8081
+            # Build the bundle before any flow launches the app: the first
+            # launch would otherwise sit on "Bundling..." past its timeout, and
+            # only the flow unlucky enough to run first would fail.
+            curl -s -o /dev/null "http://127.0.0.1:8081/index.bundle?platform=android&dev=true&minify=false"
             maestro test .maestro/
 
       - name: Upload the report when a flow fails
