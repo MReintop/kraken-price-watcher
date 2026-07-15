@@ -1,0 +1,30 @@
+# Asserts shape rather than exact values, so it passes against the fixture stub
+# in CI and against the live market when run by hand.
+#
+# Maestro selects through the platform accessibility layer, so every selector is
+# text a screen reader can also reach. An element with no accessible name is
+# invisible here, which is the point of choosing Maestro over Detox.
+appId: com.mreintop.krakenpricewatcher
+---
+- launchApp:
+    clearState: true
+
+- assertVisible: 'Markets'
+
+# Identity comes from CoinGecko; the list is rendered before any interaction.
+- assertVisible: 'Bitcoin'
+- assertVisible: 'Ethereum'
+
+# The card's accessible name, built in CoinCardUtils. If this regresses to four
+# unlabelled Texts, this stops matching — which is the assertion worth having.
+- assertVisible:
+    text: 'Bitcoin, \$.*, (up|down) [0-9.]+% in the last 24 hours'
+
+# A price arrived from Kraken's Ticker.
+- assertVisible:
+    text: '\$[0-9,]+.*'
+
+# The socket connected.
+- extendedWaitUntil:
+    visible: 'Live'
+    timeout: 15000

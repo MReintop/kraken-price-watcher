@@ -29,4 +29,13 @@ describe('ErrorView', () => {
     // Assert
     expect(onRetry).toHaveBeenCalled();
   });
+
+  it('offers retry as a button, not as tappable text', () => {
+    // Arrange / Act
+    render(<ErrorView onRetry={jest.fn()} />);
+
+    // Assert — a Text with onPress works for a sighted user and is invisible
+    // to anyone navigating by role
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
+  });
 });

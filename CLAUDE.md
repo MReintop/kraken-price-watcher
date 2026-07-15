@@ -1,44 +1,21 @@
 @AGENTS.md
 
-# Testing
+# Adding a component test? Name it `.tsx`.
 
-## Runner — two Jest projects
-`jest.config.js` defines two projects, both **bypassing the `jest-expo` preset** (its Expo "winter" runtime fails to load under Jest on SDK 57):
+`jest.config.js` routes tests by extension: `*.test.ts` → the **logic** project (node), `*.test.tsx` → the **components** project (jsdom + react-native-web). A component test named `.ts` lands in node and dies on its first import with an error that says nothing about the cause.
 
-- **logic** — `*.test.ts`, `node` env, Babel type-strip. For pure functions, reducers, selectors.
-- **components** — `*.test.tsx`, `jsdom` + **react-native-web**, `@testing-library/react`. For rendering RN components. The icon font (`@expo/vector-icons`) and `@react-navigation/native` are mocked under `test/mocks/`.
+The extension follows **what the test renders**, not what it's about — `theme.contrast.test.tsx` tests a plain object and still needs the `.tsx`.
 
-The `.ts` vs `.tsx` extension is what routes a test to the correct project.
+Full reasoning, and the rest of the testing contract, in [docs/testing.md](docs/testing.md).
 
-Commands:
-- `npm test` — run all tests
-- `npm run test:coverage` — tests + coverage report (→ `coverage/`)
-- `npx tsc --noEmit` — typecheck
-- `npm run lint` — ESLint
+```bash
+npm test              # jest: unit + component, ~4s
+npm run test:coverage # + coverage report
+npm run check:bundle  # bundle size budget
+npm run lint          # eslint
+npx tsc --noEmit      # typecheck
 
-## Placement / naming
-- Pure logic → `X.test.ts` colocated with `X.ts`.
-- Component render → `X.test.tsx` colocated with `X.tsx`.
-
-## AAA — EVERY test follows Arrange / Act / Assert
-Structure every test with the three labeled sections. Use a `makeX(overrides)` builder for **Arrange** so each test states only the field under test. Name the **Act** result `result`. Canonical example: `components/coinCard/CoinCardUtils.test.ts`.
-
-```ts
-it('marks a negative change as down + red', () => {
-  // Arrange
-  const coin = makeCoin({ price_change_percentage_24h: -1.45 });
-
-  // Act
-  const result = getCoinDetails(coin);
-
-  // Assert
-  expect(result.isUp).toBe(false);
-  expect(result.color).toBe('#dc2626');
-});
+npm run stub          # fake upstream for the flows
+npm run test:e2e:stub # maestro against the stub
+npm run test:e2e      # maestro against the real Kraken
 ```
-
-## Component tests
-Wrap the component in a Redux `<Provider>` with a **preloaded** store, query with `@testing-library/react` (`screen.getByText` / `getByRole`), and press with `fireEvent.click`. Example: `components/coinCard/CoinCard.test.tsx`.
-
-## Gotcha — do NOT use `@testing-library/react-native`
-RNTL / `react-test-renderer` do not work on this SDK (the renderer returns an empty tree). Render RN components through **react-native-web in jsdom** instead — that's what the `components` project does.

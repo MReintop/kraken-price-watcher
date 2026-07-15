@@ -1,12 +1,15 @@
 import { View, Text, Image, StyleSheet } from 'react-native';
 import { Coin } from '../../types';
 import { getCoinDetails } from '../coinCard/CoinCardUtils';
-import AnimatedPrice from '../animatedPrice/AnimatedPrice';
+import { formatPrice } from '../../lib/formatPrice';
 import PriceTickIndicator from '../priceTickIndicator/PriceTickIndicator';
 import { theme, changeColors } from '../../theme';
 
-// Top panel: icon, name, ticker, live price + tick arrow, and the 24h change.
-export default function CoinHeader({ coin }: { coin: Coin }) {
+interface CoinHeaderProps {
+  coin: Coin;
+}
+
+export default function CoinHeader({ coin }: CoinHeaderProps) {
   const details = getCoinDetails(coin);
   const change = changeColors(details.isUp);
 
@@ -20,7 +23,10 @@ export default function CoinHeader({ coin }: { coin: Coin }) {
 
       <View style={styles.priceRow}>
         <View style={styles.tickSlot} />
-        <AnimatedPrice value={coin.current_price} style={styles.price} />
+        {/* The last trade, not a tween towards it: every intermediate frame of
+            an interpolation is a price that never happened. The arrow beside it
+            is the cue that something moved. */}
+        <Text style={styles.price}>{formatPrice(coin.current_price)}</Text>
         <View style={styles.tickSlot}>
           <PriceTickIndicator price={coin.current_price} />
         </View>
@@ -36,11 +42,19 @@ export default function CoinHeader({ coin }: { coin: Coin }) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { alignItems: 'center', gap: theme.space.sm, marginTop: theme.space.lg },
+  wrap: {
+    alignItems: 'center',
+    gap: theme.space.sm,
+    marginTop: theme.space.lg,
+  },
   head: { alignItems: 'center', gap: theme.space.xs },
   icon: { width: 72, height: 72, borderRadius: theme.radius.pill },
   name: { color: theme.color.text, fontSize: theme.font.h1, fontWeight: '800' },
-  symbol: { color: theme.color.muted, fontSize: theme.font.small, fontWeight: '600' },
+  symbol: {
+    color: theme.color.muted,
+    fontSize: theme.font.small,
+    fontWeight: '600',
+  },
   priceRow: {
     flexDirection: 'row',
     alignItems: 'center',

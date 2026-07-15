@@ -1,17 +1,5 @@
 import { configureStore } from '@reduxjs/toolkit';
-import type { Coin } from '../types';
-
-const makeCoin = (overrides: Partial<Coin> = {}): Coin => ({
-  id: 'bitcoin',
-  name: 'Bitcoin',
-  symbol: 'btc',
-  image: 'x',
-  current_price: 62888,
-  price_change_percentage_24h: -1.45,
-  market_cap: 0,
-  total_volume: 0,
-  ...overrides,
-});
+import { TRACKED_COINS } from '../lib/coins';
 
 // The middleware registers its listener and tracks `stopSocket` at module scope,
 // so each test needs a FRESH copy of the module (reset registry + re-require)
@@ -38,42 +26,53 @@ const setup = () => {
 // Let the listener effect (scheduled as a microtask) run before asserting.
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
+const ALL_SYMBOLS = TRACKED_COINS.map((coin) => coin.symbol);
+
 afterEach(() => {
   jest.resetModules();
   jest.clearAllMocks();
 });
 
 describe('listenerMiddleware — Kraken socket lifecycle', () => {
-  it('starts the ticker with the coin symbols on the first successful load', async () => {
+  it('starts the ticker as soon as the app asks for coins', async () => {
     // Arrange
     const { store, startKrakenTicker, fetchCoins } = setup();
 
     // Act
+    store.dispatch(fetchCoins.pending('req-1', undefined));
+    await flush();
+
+    // Assert — symbols come from the local registry, plus a dispatch fn
+    expect(startKrakenTicker).toHaveBeenCalledTimes(1);
+    expect(startKrakenTicker).toHaveBeenCalledWith(
+      ALL_SYMBOLS,
+      expect.any(Function),
+    );
+  });
+
+  it('starts the ticker even when CoinGecko fails outright', async () => {
+    // Arrange
+    const { store, startKrakenTicker, fetchCoins } = setup();
+
+    // Act — the metadata call errors; Kraken itself is perfectly healthy
+    store.dispatch(fetchCoins.pending('req-1', undefined));
     store.dispatch(
-      fetchCoins.fulfilled(
-        [makeCoin({ symbol: 'btc' }), makeCoin({ id: 'ethereum', symbol: 'eth' })],
-        'req-1',
-        undefined,
-      ),
+      fetchCoins.rejected(new Error('429'), 'req-1', undefined, 'rate limited'),
     );
     await flush();
 
-    // Assert — symbols passed through, plus a dispatch fn for tick delivery
+    // Assert — a CoinGecko outage must not hide a working Kraken feed
     expect(startKrakenTicker).toHaveBeenCalledTimes(1);
-    expect(startKrakenTicker).toHaveBeenCalledWith(
-      ['btc', 'eth'],
-      expect.any(Function),
-    );
   });
 
   it('does not re-open the socket on a later refetch', async () => {
     // Arrange
     const { store, startKrakenTicker, fetchCoins } = setup();
 
-    // Act — two successful loads in a row
-    store.dispatch(fetchCoins.fulfilled([makeCoin()], 'req-1', undefined));
+    // Act — a load, then a pull-to-refresh
+    store.dispatch(fetchCoins.pending('req-1', undefined));
     await flush();
-    store.dispatch(fetchCoins.fulfilled([makeCoin()], 'req-2', undefined));
+    store.dispatch(fetchCoins.pending('req-2', undefined));
     await flush();
 
     // Assert — the listener unsubscribed itself after the first start

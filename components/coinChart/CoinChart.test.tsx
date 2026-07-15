@@ -22,7 +22,10 @@ const makeCandle = (overrides: Partial<Candle> = {}): Candle => ({
 // the last candle, the period change differs per timeframe (+20% vs +140%).
 const byTimeframe = {
   [Timeframe.Day]: [makeCandle()],
-  [Timeframe.Month]: [makeCandle({ o: 100 }), makeCandle({ o: 102, h: 110, l: 100, c: 108 })],
+  [Timeframe.Month]: [
+    makeCandle({ o: 100 }),
+    makeCandle({ o: 102, h: 110, l: 100, c: 108 }),
+  ],
   [Timeframe.Year]: [makeCandle({ o: 50 }), makeCandle({ o: 60, c: 70 })],
 };
 
@@ -59,19 +62,29 @@ describe('CoinChart', () => {
 
   it('renders the period change and one candle per data point when loaded', () => {
     // Arrange
-    mockUseCandles.mockReturnValue({ byTimeframe, status: FetchStatus.Succeeded });
+    mockUseCandles.mockReturnValue({
+      byTimeframe,
+      status: FetchStatus.Succeeded,
+    });
 
     // Act — live price 120 vs Month open 100 → +20%
-    const { container } = render(<CoinChart coinId="bitcoin" livePrice={120} />);
+    const { container } = render(
+      <CoinChart coinId="bitcoin" livePrice={120} />,
+    );
 
     // Assert
     expect(screen.getByText('▲ 20.00%')).toBeTruthy();
-    expect(container.querySelectorAll('[data-testid="svg-rect"]')).toHaveLength(2);
+    expect(container.querySelectorAll('[data-testid="svg-rect"]')).toHaveLength(
+      2,
+    );
   });
 
   it('switches the series when a different timeframe is selected', () => {
     // Arrange
-    mockUseCandles.mockReturnValue({ byTimeframe, status: FetchStatus.Succeeded });
+    mockUseCandles.mockReturnValue({
+      byTimeframe,
+      status: FetchStatus.Succeeded,
+    });
     render(<CoinChart coinId="bitcoin" livePrice={120} />);
 
     // Act — Year open 50 vs live price 120 → +140%

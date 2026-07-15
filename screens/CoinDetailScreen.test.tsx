@@ -28,7 +28,12 @@ const setupStore = (items: Coin[]) =>
   configureStore({
     reducer: { coins: coinsReducer },
     preloadedState: {
-      coins: { items, status: FetchStatus.Succeeded, live: true },
+      coins: {
+        items,
+        status: FetchStatus.Succeeded,
+        socket: 'live' as const,
+        unavailable: [],
+      },
     },
   });
 

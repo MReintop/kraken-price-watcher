@@ -1,6 +1,7 @@
 import { createListenerMiddleware } from '@reduxjs/toolkit';
 import type { RootState, AppDispatch } from './store';
 import { fetchCoins } from './coinsSlice';
+import { TRACKED_COINS } from '../lib/coins';
 import { startKrakenTicker } from './krakenSocket';
 
 // Created untyped so the store can include it without RootState/AppDispatch
@@ -15,17 +16,17 @@ const startAppListening = listenerMiddleware.startListening.withTypes<
 
 let stopSocket: (() => void) | undefined;
 
-// When the first CoinGecko load succeeds, we know the symbol set — start the
-// live Kraken socket once, then unsubscribe so later refetches don't re-open it.
+// Started when the app asks for coins, not when CoinGecko answers. The symbols
+// come from the local registry, so CoinGecko being slow, rate limited or down
+// delays metadata and nothing else — the prices are Kraken's and arrive anyway.
+//
+// Unsubscribes after the first start so a pull-to-refresh cannot open a second
+// connection.
 startAppListening({
-  actionCreator: fetchCoins.fulfilled,
-  effect: (action, listenerApi) => {
+  actionCreator: fetchCoins.pending,
+  effect: (_action, listenerApi) => {
     if (stopSocket) return;
-
-    // Map all current symbols
-    const symbols = action.payload.map((c) => c.symbol);
-
-    // set function for stopping socket
+    const symbols = TRACKED_COINS.map((coin) => coin.symbol);
     stopSocket = startKrakenTicker(symbols, listenerApi.dispatch);
     listenerApi.unsubscribe();
   },

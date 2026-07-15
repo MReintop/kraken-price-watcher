@@ -18,17 +18,17 @@ export default function App() {
       <SafeAreaProvider>
         <StatusBar style="light" />
         <NavigationContainer theme={customDarkTheme}>
-        <Stack.Navigator screenOptions={navigatorScreenOptions}>
-          <Stack.Screen
-            name={NavigateKey.Prices}
-            component={PricesScreen}
-            options={{ title: 'Kraken-lite' }}
-          />
-          <Stack.Screen
-            name={NavigateKey.CoinDetail}
-            component={CoinDetailScreen}
-          />
-        </Stack.Navigator>
+          <Stack.Navigator screenOptions={navigatorScreenOptions}>
+            <Stack.Screen
+              name={NavigateKey.Prices}
+              component={PricesScreen}
+              options={{ title: 'Kraken-lite' }}
+            />
+            <Stack.Screen
+              name={NavigateKey.CoinDetail}
+              component={CoinDetailScreen}
+            />
+          </Stack.Navigator>
         </NavigationContainer>
       </SafeAreaProvider>
     </Provider>

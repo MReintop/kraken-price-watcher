@@ -1,0 +1,10 @@
+[
+  { "id": "bitcoin", "symbol": "btc", "pair": "XXBTZUSD" },
+  { "id": "ethereum", "symbol": "eth", "pair": "XETHZUSD" },
+  { "id": "solana", "symbol": "sol", "pair": "SOLUSD" },
+  { "id": "cardano", "symbol": "ada", "pair": "ADAUSD" },
+  { "id": "ripple", "symbol": "xrp", "pair": "XXRPZUSD" },
+  { "id": "dogecoin", "symbol": "doge", "pair": "XDGUSD" },
+  { "id": "polkadot", "symbol": "dot", "pair": "DOTUSD" },
+  { "id": "chainlink", "symbol": "link", "pair": "LINKUSD" }
+]

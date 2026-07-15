@@ -29,7 +29,7 @@ export enum FetchStatus {
   Failed = 'failed',
 }
 
-// One OHLC candle (from CoinGecko /coins/{id}/ohlc).
+// One OHLC candle.
 export interface Candle {
   t: number; // timestamp (ms)
   o: number;

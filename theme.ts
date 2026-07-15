@@ -10,13 +10,15 @@ export const theme = {
     text: '#E6E8EA',
     muted: '#8A94A6',
     up: '#16C784', // gains (green)
-    down: '#EA3943', // losses (red)
-    accent: '#6366F1', // brand accent (indigo)
+    down: '#FF5F6A', // losses (red) — light enough to read on tint.down
+    // Two indigos, because one cannot do both jobs: `text` on `accent` needs it
+    // dark, while `accentText` on `bg` needs it light.
+    accent: '#5457D0', // filled surfaces: selected chips, spinners
+    accentText: '#818CF8', // accent-coloured text/links on a dark background
   },
-  // translucent tints for pills/badges (up/down backgrounds)
   tint: {
     up: 'rgba(22,199,132,0.14)',
-    down: 'rgba(234,57,67,0.14)',
+    down: 'rgba(255,95,106,0.14)',
   },
   space: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 }, // 4-based scale
   radius: { sm: 8, md: 12, lg: 16, pill: 999 },
@@ -25,8 +27,7 @@ export const theme = {
   breakpoint: { sm: 376, md: 768 },
 } as const;
 
-// Single source for the up/down palette: `fg` for text/icons, `tint` for the
-// translucent pill background. Keeps every gain/loss element on the same colors.
+// One source for the up/down palette: `fg` for text, `tint` for the pill behind it.
 export const changeColors = (isUp: boolean) => ({
   fg: isUp ? theme.color.up : theme.color.down,
   tint: isUp ? theme.tint.up : theme.tint.down,

@@ -10,6 +10,5 @@ export const store = configureStore({
     getDefaultMiddleware().prepend(listenerMiddleware.middleware),
 });
 
-// Inferred types — keep these in sync automatically as the store grows.
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;

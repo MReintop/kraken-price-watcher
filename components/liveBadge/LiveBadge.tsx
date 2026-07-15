@@ -1,17 +1,37 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { theme } from '../../theme';
+import type { SocketStatus } from '../../store/coinsSlice';
 
-// Dot + label showing whether the Kraken price stream is connected.
-export default function LiveBadge({ live }: { live: boolean }) {
+interface LiveBadgeProps {
+  status: SocketStatus;
+}
+
+// `stale` is the one worth shouting about: the prices are still on screen and
+// still look current, so this badge is the only thing saying they are not.
+const LABEL: Record<SocketStatus, string> = {
+  connecting: 'Connecting…',
+  live: 'Live',
+  stale: 'Not updating',
+  offline: 'Offline',
+};
+
+const DOT: Record<SocketStatus, string> = {
+  connecting: theme.color.muted,
+  live: theme.color.up,
+  stale: theme.color.down,
+  offline: theme.color.muted,
+};
+
+export default function LiveBadge({ status }: LiveBadgeProps) {
   return (
-    <View style={styles.live}>
-      <View
-        style={[
-          styles.dot,
-          { backgroundColor: live ? theme.color.up : theme.color.muted },
-        ]}
-      />
-      <Text style={styles.liveText}>{live ? 'Live' : 'Connecting…'}</Text>
+    <View
+      style={styles.live}
+      accessibilityRole="text"
+      accessibilityLiveRegion="polite"
+      accessibilityLabel={`Price feed: ${LABEL[status]}`}
+    >
+      <View style={[styles.dot, { backgroundColor: DOT[status] }]} />
+      <Text style={styles.liveText}>{LABEL[status]}</Text>
     </View>
   );
 }

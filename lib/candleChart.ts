@@ -1,23 +1,10 @@
 import { Candle, Timeframe } from '../types';
 
-// CoinGecko OHLC `days` per timeframe.
-export const TIMEFRAME_DAYS: Record<Timeframe, string> = {
-  [Timeframe.Day]: '1',
-  [Timeframe.Month]: '30',
-  [Timeframe.Year]: '365',
-};
-
-// All timeframes in display order (values double as UI labels).
+// Display order; the values double as the button labels.
 export const TIMEFRAMES = Object.values(Timeframe);
 
-// CoinGecko OHLC rows are [ts_ms, open, high, low, close].
-export function mapOhlcRows(rows: number[][]): Candle[] {
-  return rows.map(([t, o, h, l, c]) => ({ t, o, h, l, c }));
-}
-
-// Fold the live price (from the Kraken ticker socket in the store) into the
-// most recent candle so the right-most candle moves in real-time. Pure +
-// immutable: earlier candles keep their references.
+// Folds a live price into the most recent candle. Immutable: untouched candles
+// keep their references, so only the last one re-renders.
 export function applyLivePrice(candles: Candle[], price?: number): Candle[] {
   if (price == null || candles.length === 0) return candles;
   const last = candles[candles.length - 1];
@@ -30,8 +17,7 @@ export function applyLivePrice(candles: Candle[], price?: number): Candle[] {
   return [...candles.slice(0, -1), updated];
 }
 
-// % change across a candle series (first open → last close). Derived from the
-// OHLC data we already fetch, so the timeframe change needs no extra request.
+// % change across a series: first open → last close.
 export function periodChangePct(candles: Candle[]): number | null {
   if (candles.length === 0) return null;
   const first = candles[0].o;
@@ -40,7 +26,6 @@ export function periodChangePct(candles: Candle[]): number | null {
   return ((last - first) / first) * 100;
 }
 
-// "▲ 12.30%" / "▼ -1.93%"
 export function formatSignedPct(pct: number): string {
   return `${pct >= 0 ? '▲' : '▼'} ${pct.toFixed(2)}%`;
 }
@@ -68,7 +53,7 @@ export function priceToY(
   return height - ((price - domain.min) / range) * height;
 }
 
-// "Nice" round tick values covering [min, max] (à la d3). Used for the Y axis.
+// "Nice" round tick values covering [min, max], à la d3.
 function niceNum(range: number, round: boolean): number {
   const exp = Math.floor(Math.log10(range));
   const frac = range / Math.pow(10, exp);
@@ -91,13 +76,14 @@ export function niceTicks(min: number, max: number, count = 5): number[] {
   return ticks;
 }
 
-// Indices of at most `count` evenly-spaced items across a length-`n` series,
-// inclusive of the first and last. Used to thin out X-axis time labels.
+// At most `count` evenly-spaced indices across `n`, including first and last.
 export function evenlySpacedIndices(n: number, count: number): number[] {
   if (n <= 0 || count <= 0) return [];
   const k = Math.min(count, n);
   if (k === 1) return [0];
-  return Array.from({ length: k }, (_, i) => Math.round((i * (n - 1)) / (k - 1)));
+  return Array.from({ length: k }, (_, i) =>
+    Math.round((i * (n - 1)) / (k - 1)),
+  );
 }
 
 export function formatAxisPrice(p: number): string {
@@ -152,9 +138,8 @@ export interface CandleLayout {
   up: boolean;
 }
 
-// Pure geometry: project candles into an SVG box (0,0 top-left). Domain defaults
-// to the data's own min/max but can be overridden (e.g. nice-tick bounds) so
-// candles and gridlines share the same scale.
+// Projects candles into an SVG box (0,0 top-left). The domain is overridable so
+// candles and gridlines can share one scale.
 export function computeCandleLayout(
   candles: Candle[],
   size: { width: number; height: number },

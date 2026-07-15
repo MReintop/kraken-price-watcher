@@ -1,0 +1,29 @@
+# Navigation and the chart, driven the way a screen reader user would: by name.
+appId: com.mreintop.krakenpricewatcher
+---
+- launchApp:
+    clearState: true
+
+- assertVisible: 'Bitcoin'
+
+# Tapping by accessible name, not by testID — a testID would let this pass on an
+# app no screen reader can use.
+- tapOn:
+    text: 'Bitcoin, .*'
+
+- assertVisible: 'BTC'
+- assertVisible: 'Market cap'
+
+# The chart's own timeframe controls.
+- assertVisible: '24H'
+- assertVisible: '1M'
+- assertVisible: '1Y'
+
+- tapOn: '24H'
+- assertVisible: '24H'
+
+- tapOn: '1Y'
+- assertVisible: '1Y'
+
+- back
+- assertVisible: 'Markets'

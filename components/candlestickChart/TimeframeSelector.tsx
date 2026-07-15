@@ -8,7 +8,10 @@ interface TimeframeSelectorProps {
   onChange: (tf: Timeframe) => void;
 }
 
-export default function TimeframeSelector({ value, onChange }: TimeframeSelectorProps) {
+export default function TimeframeSelector({
+  value,
+  onChange,
+}: TimeframeSelectorProps) {
   return (
     <View style={styles.row}>
       {TIMEFRAMES.map((tf) => {
@@ -19,6 +22,9 @@ export default function TimeframeSelector({ value, onChange }: TimeframeSelector
             onPress={() => onChange(tf)}
             accessibilityRole="button"
             accessibilityState={{ selected }}
+            // The chip is a pill by design and about half the reachable minimum
+            // tall. hitSlop buys the target back without inflating the pill.
+            hitSlop={CHIP_HIT_SLOP}
             style={[styles.chip, selected && styles.chipSelected]}
           >
             <Text style={[styles.label, selected && styles.labelSelected]}>
@@ -31,6 +37,10 @@ export default function TimeframeSelector({ value, onChange }: TimeframeSelector
   );
 }
 
+// Vertical only: the row is horizontally tight, so widening the sides would
+// overlap the neighbouring chip and steal its taps.
+const CHIP_HIT_SLOP = { top: 11, bottom: 11 };
+
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: theme.space.sm },
   chip: {
@@ -40,6 +50,10 @@ const styles = StyleSheet.create({
     backgroundColor: theme.color.surface,
   },
   chipSelected: { backgroundColor: theme.color.accent },
-  label: { color: theme.color.muted, fontSize: theme.font.small, fontWeight: '600' },
+  label: {
+    color: theme.color.muted,
+    fontSize: theme.font.small,
+    fontWeight: '600',
+  },
   labelSelected: { color: theme.color.text },
 });
