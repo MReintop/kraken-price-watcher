@@ -59,6 +59,16 @@ The badge is no longer part of the lie, at least: a symbol the socket isn't real
 
 Middleware rather than a component effect, because an effect ties the connection's lifetime to a mount and reconnects on every remount. The middleware sees the app start without being a view.
 
+## Candles: selected first, then the rest
+
+`useCandles(coinId, timeframe)` fetches **the range being looked at, alone**, and prefetches the other two once it lands. The cache is keyed per coin _and_ range, so each is fetched at most once per TTL.
+
+**Eager was the wrong default, but for a subtler reason than it looks.** Fetching all three up front doesn't cost more requests than lazy for someone who views all three — the cache means each range is fetched once either way. It costs more for everyone who views _one_: three requests for a glance, and 24 to browse eight coins instead of 8. And `Promise.all` fires them simultaneously, which is the burstiest pattern there is and the one most likely to trip a rate limiter.
+
+Selected-first keeps the instant switching that made eager attractive — by the time a user reaches for another range it is usually already there — while the visible chart gets the network to itself and an abandoned screen cancels what it no longer needs.
+
+**A prefetch failure is silent on purpose.** It refetches, and reports properly, if that range is ever selected. Under `Promise.all` one failed range took down two successful ones and showed an error for all three.
+
 ## The feed follows the app to the background
 
 The socket owns its own foreground policy (`store/krakenSocket.ts`, via the `lib/appState.ts` seam): backgrounding drops the feed and stops the retries, foregrounding reconnects immediately instead of serving out a backoff.

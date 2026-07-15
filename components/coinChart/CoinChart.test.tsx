@@ -35,7 +35,7 @@ describe('CoinChart', () => {
   it('shows a spinner while loading', () => {
     // Arrange
     mockUseCandles.mockReturnValue({
-      byTimeframe: undefined,
+      candles: undefined,
       status: FetchStatus.Loading,
     });
 
@@ -49,7 +49,7 @@ describe('CoinChart', () => {
   it('shows an error message when the fetch failed', () => {
     // Arrange
     mockUseCandles.mockReturnValue({
-      byTimeframe: undefined,
+      candles: undefined,
       status: FetchStatus.Failed,
     });
 
@@ -62,10 +62,12 @@ describe('CoinChart', () => {
 
   it('renders the period change and one candle per data point when loaded', () => {
     // Arrange
-    mockUseCandles.mockReturnValue({
-      byTimeframe,
+    // The hook is asked for one range, so the stub answers per range — which is
+    // what keeps the timeframe switch below meaningful.
+    mockUseCandles.mockImplementation((_coinId, timeframe: Timeframe) => ({
+      candles: byTimeframe[timeframe],
       status: FetchStatus.Succeeded,
-    });
+    }));
 
     // Act — live price 120 vs Month open 100 → +20%
     const { container } = render(
@@ -81,10 +83,12 @@ describe('CoinChart', () => {
 
   it('switches the series when a different timeframe is selected', () => {
     // Arrange
-    mockUseCandles.mockReturnValue({
-      byTimeframe,
+    // The hook is asked for one range, so the stub answers per range — which is
+    // what keeps the timeframe switch below meaningful.
+    mockUseCandles.mockImplementation((_coinId, timeframe: Timeframe) => ({
+      candles: byTimeframe[timeframe],
       status: FetchStatus.Succeeded,
-    });
+    }));
     render(<CoinChart coinId="bitcoin" livePrice={120} />);
 
     // Act — Year open 50 vs live price 120 → +140%

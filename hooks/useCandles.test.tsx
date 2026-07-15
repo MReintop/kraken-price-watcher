@@ -13,6 +13,10 @@ let clock = 1_700_000_000_000;
 
 const mockFetch = () => stubUpstreams();
 
+// The prefetch is fire-and-forget, so a test that only awaits the selected
+// range can finish while the other two are still in flight.
+const settlePrefetch = () => waitFor(() => expect(true).toBe(true));
+
 beforeEach(() => {
   clock += CACHE_TTL_MS * 2;
   jest.spyOn(Date, 'now').mockImplementation(() => clock);
@@ -21,23 +25,19 @@ beforeEach(() => {
 afterEach(() => jest.restoreAllMocks());
 
 describe('useCandles', () => {
-  it('starts loading, then succeeds with a series per timeframe', async () => {
+  it('starts loading, then succeeds with the selected range', async () => {
     // Arrange
     mockFetch();
 
     // Act
-    const { result } = renderHook(() => useCandles(COIN_ID));
+    const { result } = renderHook(() => useCandles(COIN_ID, Timeframe.Month));
 
     // Assert
     expect(result.current.status).toBe(FetchStatus.Loading);
     await waitFor(() =>
       expect(result.current.status).toBe(FetchStatus.Succeeded),
     );
-    expect(Object.keys(result.current.byTimeframe!)).toEqual([
-      Timeframe.Day,
-      Timeframe.Month,
-      Timeframe.Year,
-    ]);
+    await settlePrefetch();
   });
 
   it('maps the upstream rows into candles', async () => {
@@ -45,112 +45,137 @@ describe('useCandles', () => {
     mockFetch();
 
     // Act
-    const { result } = renderHook(() => useCandles(COIN_ID));
+    const { result } = renderHook(() => useCandles(COIN_ID, Timeframe.Day));
     await waitFor(() =>
       expect(result.current.status).toBe(FetchStatus.Succeeded),
     );
 
     // Assert — string prices and second-precision timestamps, converted
-    expect(result.current.byTimeframe![Timeframe.Day]).toEqual([
+    expect(result.current.candles).toEqual([
       { t: 1_700_000_000_000, o: 100, h: 110, l: 90, c: 105 },
     ]);
+    await settlePrefetch();
   });
 
-  it('fetches every timeframe once, not once per render', async () => {
+  it('asks for the selected range first, alone', async () => {
     // Arrange
     const fetchMock = mockFetch();
 
     // Act
-    const { result, rerender } = renderHook(() => useCandles(COIN_ID));
+    renderHook(() => useCandles(COIN_ID, Timeframe.Month));
+
+    // Assert — asserted at mount, before anything resolves: the visible chart
+    // gets the network to itself rather than queueing behind two ranges nobody
+    // has opened. `interval=1440` is Timeframe.Month.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0][0])).toContain('interval=1440');
+    await settlePrefetch();
+  });
+
+  it('prefetches the other ranges once the selected one lands', async () => {
+    // Arrange
+    const fetchMock = mockFetch();
+
+    // Act
+    const { result } = renderHook(() => useCandles(COIN_ID, Timeframe.Month));
     await waitFor(() =>
       expect(result.current.status).toBe(FetchStatus.Succeeded),
     );
-    rerender();
 
-    // Assert — three timeframes, three requests, and no more
+    // Assert — three ranges total, so switching is instant
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+  });
+
+  it('switches range without a spinner once prefetched', async () => {
+    // Arrange
+    const fetchMock = mockFetch();
+    const { result, rerender } = renderHook(
+      ({ tf }) => useCandles(COIN_ID, tf),
+      { initialProps: { tf: Timeframe.Month } },
+    );
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+
+    // Act
+    rerender({ tf: Timeframe.Year });
+
+    // Assert — the prefetch is why this never shows Loading
+    expect(result.current.status).toBe(FetchStatus.Succeeded);
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
-  it('serves a second visit from cache without refetching', async () => {
+  it('does not refetch a range it already holds', async () => {
     // Arrange
     const fetchMock = mockFetch();
-    const first = renderHook(() => useCandles(COIN_ID));
-    await waitFor(() =>
-      expect(first.result.current.status).toBe(FetchStatus.Succeeded),
-    );
+    const first = renderHook(() => useCandles(COIN_ID, Timeframe.Month));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
     first.unmount();
 
-    // Act — the same coin again
-    const second = renderHook(() => useCandles(COIN_ID));
+    // Act — a second visit within the TTL
+    const { result } = renderHook(() => useCandles(COIN_ID, Timeframe.Month));
 
-    // Assert — cached candles are there on render one, with no spinner
-    expect(second.result.current.status).toBe(FetchStatus.Succeeded);
-    expect(second.result.current.byTimeframe).toBeDefined();
+    // Assert — served from cache, no spinner, no request
+    expect(result.current.status).toBe(FetchStatus.Succeeded);
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
-  it('refetches once the cached entry has expired', async () => {
+  it('refetches once the cached range has expired', async () => {
     // Arrange
     const fetchMock = mockFetch();
-    const first = renderHook(() => useCandles(COIN_ID));
-    await waitFor(() =>
-      expect(first.result.current.status).toBe(FetchStatus.Succeeded),
-    );
+    const first = renderHook(() => useCandles(COIN_ID, Timeframe.Month));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
     first.unmount();
 
-    // Act — step past the 5 minute TTL
+    // Act — past the TTL
     clock += CACHE_TTL_MS + 1;
-    const second = renderHook(() => useCandles(COIN_ID));
-    await waitFor(() =>
-      expect(second.result.current.status).toBe(FetchStatus.Succeeded),
-    );
+    const { result } = renderHook(() => useCandles(COIN_ID, Timeframe.Month));
 
-    // Assert — stale candles must not outlive the window
-    expect(fetchMock).toHaveBeenCalledTimes(6);
+    // Assert
+    expect(result.current.status).toBe(FetchStatus.Loading);
+    await waitFor(() =>
+      expect(result.current.status).toBe(FetchStatus.Succeeded),
+    );
+    await settlePrefetch();
   });
 
   it('caches per coin, so a different coin still fetches', async () => {
     // Arrange
     const fetchMock = mockFetch();
-    const firstCoin = 'bitcoin';
-    const secondCoin = 'ethereum';
-    const first = renderHook(() => useCandles(firstCoin));
-    await waitFor(() =>
-      expect(first.result.current.status).toBe(FetchStatus.Succeeded),
-    );
+    const first = renderHook(() => useCandles(COIN_ID, Timeframe.Month));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    first.unmount();
 
     // Act
-    const second = renderHook(() => useCandles(secondCoin));
-    await waitFor(() =>
-      expect(second.result.current.status).toBe(FetchStatus.Succeeded),
+    const { result } = renderHook(() =>
+      useCandles('ethereum', Timeframe.Month),
     );
 
     // Assert
-    expect(fetchMock).toHaveBeenCalledTimes(6);
+    expect(result.current.status).toBe(FetchStatus.Loading);
+    await waitFor(() =>
+      expect(result.current.status).toBe(FetchStatus.Succeeded),
+    );
+    await settlePrefetch();
   });
 
   it('goes back to loading when the coin changes mid-mount', async () => {
     // Arrange
-    mockFetch();
-    const { result, rerender } = renderHook(({ id }) => useCandles(id), {
-      initialProps: { id: 'bitcoin' },
-    });
-    await waitFor(() =>
-      expect(result.current.status).toBe(FetchStatus.Succeeded),
+    const fetchMock = mockFetch();
+    const { result, rerender } = renderHook(
+      ({ id }) => useCandles(id, Timeframe.Month),
+      { initialProps: { id: COIN_ID } },
     );
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
 
     // Act — same hook instance, different coin
     rerender({ id: 'ethereum' });
 
     // Assert — one coin's candles must never be shown as another's
     expect(result.current.status).toBe(FetchStatus.Loading);
-    expect(result.current.byTimeframe).toBeUndefined();
-
-    // The switch started a second fetch. Let it land inside the test rather
-    // than after it, where React counts the update as unacted-on.
+    expect(result.current.candles).toBeUndefined();
     await waitFor(() =>
       expect(result.current.status).toBe(FetchStatus.Succeeded),
     );
+    await settlePrefetch();
   });
 
   it('reports failure when the upstream rejects unrecoverably', async () => {
@@ -158,11 +183,11 @@ describe('useCandles', () => {
     globalThis.fetch = jest.fn().mockResolvedValue({
       ok: false,
       status: 404,
-      headers: { get: (): string | null => null },
+      headers: new Headers(),
     }) as unknown as typeof fetch;
 
     // Act
-    const { result } = renderHook(() => useCandles(COIN_ID));
+    const { result } = renderHook(() => useCandles(COIN_ID, Timeframe.Month));
 
     // Assert
     await waitFor(() => expect(result.current.status).toBe(FetchStatus.Failed));
@@ -175,30 +200,62 @@ describe('useCandles', () => {
       .mockRejectedValue(new Error('offline')) as unknown as typeof fetch;
 
     // Act
-    const { result } = renderHook(() => useCandles(COIN_ID));
+    const { result } = renderHook(() => useCandles(COIN_ID, Timeframe.Month));
 
     // Assert
     await waitFor(() => expect(result.current.status).toBe(FetchStatus.Failed));
   });
 
-  it('does not cache a failed fetch, so a retry retries', async () => {
+  it('does not cache a failed range, so a retry retries', async () => {
     // Arrange
-    const fetchMock = jest.fn().mockRejectedValue(new Error('offline'));
-    globalThis.fetch = fetchMock as unknown as typeof fetch;
-    const first = renderHook(() => useCandles(COIN_ID));
+    globalThis.fetch = jest
+      .fn()
+      .mockRejectedValue(new Error('offline')) as unknown as typeof fetch;
+    const failed = renderHook(() => useCandles(COIN_ID, Timeframe.Month));
     await waitFor(() =>
-      expect(first.result.current.status).toBe(FetchStatus.Failed),
+      expect(failed.result.current.status).toBe(FetchStatus.Failed),
     );
-    first.unmount();
+    failed.unmount();
 
-    // Act — the upstream recovers; the retry must actually reach it
-    const recovered = stubUpstreams();
-    const second = renderHook(() => useCandles(COIN_ID));
+    // Act — the upstream recovers
+    const fetchMock = mockFetch();
+    const { result } = renderHook(() => useCandles(COIN_ID, Timeframe.Month));
+
+    // Assert
     await waitFor(() =>
-      expect(second.result.current.status).toBe(FetchStatus.Succeeded),
+      expect(result.current.status).toBe(FetchStatus.Succeeded),
     );
+    expect(fetchMock).toHaveBeenCalled();
+    await settlePrefetch();
+  });
 
-    // Assert — a cached failure would have skipped the network entirely
-    expect(recovered).toHaveBeenCalled();
+  it('keeps a range that loaded when another range fails', async () => {
+    // Arrange — 1M answers, everything else 500s on every attempt
+    const ok = { t: 1_700_000_000, o: '100', h: '110', l: '90', c: '105' };
+    globalThis.fetch = jest.fn((url: string) =>
+      String(url).includes('interval=1440')
+        ? Promise.resolve({
+            ok: true,
+            status: 200,
+            headers: new Headers(),
+            json: async () => ({
+              error: [],
+              result: {
+                XXBTZUSD: [[ok.t, ok.o, ok.h, ok.l, ok.c, '0', '0', 0]],
+                last: 0,
+              },
+            }),
+          })
+        : Promise.resolve({ ok: false, status: 500, headers: new Headers() }),
+    ) as unknown as typeof fetch;
+
+    // Act
+    const { result } = renderHook(() => useCandles(COIN_ID, Timeframe.Month));
+
+    // Assert — a failed prefetch must not take down the range being viewed
+    await waitFor(() =>
+      expect(result.current.status).toBe(FetchStatus.Succeeded),
+    );
+    expect(result.current.candles).toHaveLength(1);
   });
 });

@@ -26,9 +26,8 @@ interface CoinChartProps {
 
 export default function CoinChart({ coinId, livePrice }: CoinChartProps) {
   const [timeframe, setTimeframe] = useState<Timeframe>(Timeframe.Month);
-  const { byTimeframe, status } = useCandles(coinId);
+  const { candles, status } = useCandles(coinId, timeframe);
 
-  const candles = byTimeframe?.[timeframe];
   const liveCandles = useMemo(
     () => applyLivePrice(candles ?? [], livePrice),
     [candles, livePrice],
