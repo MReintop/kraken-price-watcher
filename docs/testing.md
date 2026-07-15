@@ -76,6 +76,7 @@ On the web, accessibility is audited in Playwright with `makeAxeBuilder` — one
 - **Contrast** — `theme.contrast.test.tsx` computes WCAG contrast ratios over `theme.ts` directly. This is the one part of WCAG that transfers cleanly, because it's about colour, not markup.
 - **Labels and roles** — asserted per component in its own test, via the `accessibilityLabel` / `accessibilityRole` props.
 - **Reduced motion** — `useReducedMotion` is tested directly, and the animated components are tested for honouring it.
+- **The chart's summary** — `describeCandles` is a pure function with its own tests, and `CandlestickChart.test.tsx` asserts it actually reaches the tree. An SVG of rectangles says nothing to a screen reader, and reading thirty candles one by one would be worse than silence; the summary carries what a sighted user takes in at a glance — range, direction, extremes — as one node.
 - **Maestro flows** — a de-facto smoke test, because Maestro selects through the accessibility layer (below). An unlabelled element is invisible to it.
 
 **Two tools were evaluated and rejected**, both on dependency grounds rather than merit:

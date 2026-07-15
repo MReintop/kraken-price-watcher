@@ -1,3 +1,4 @@
+import { View } from 'react-native';
 import { Svg, Line, Rect, G, Text as SvgText } from 'react-native-svg';
 import { Candle, Timeframe } from '../../types';
 import {
@@ -8,6 +9,7 @@ import {
   formatAxisPrice,
   formatAxisTime,
   evenlySpacedIndices,
+  describeCandles,
 } from '../../lib/candleChart';
 import { theme } from '../../theme';
 
@@ -47,73 +49,82 @@ export default function CandlestickChart({
   const labelIdx = evenlySpacedIndices(candles.length, X_LABEL_COUNT);
 
   return (
-    <Svg width={width} height={height}>
-      {/* Y gridlines + price labels */}
-      {ticks.map((t, i) => {
-        const y = priceToY(t, domain, plotHeight);
-        return (
-          <G key={`y${i}`}>
-            <Line
-              x1={0}
-              y1={y}
-              x2={plotWidth}
-              y2={y}
-              stroke={theme.color.border}
-              strokeWidth={1}
-            />
+    // One node, not hundreds: `accessible` collapses the whole plot into a
+    // single element, so a screen reader reads the summary instead of walking a
+    // few hundred unlabelled rectangles and lines.
+    <View
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={describeCandles(candles, timeframe)}
+    >
+      <Svg width={width} height={height}>
+        {/* Y gridlines + price labels */}
+        {ticks.map((t, i) => {
+          const y = priceToY(t, domain, plotHeight);
+          return (
+            <G key={`y${i}`}>
+              <Line
+                x1={0}
+                y1={y}
+                x2={plotWidth}
+                y2={y}
+                stroke={theme.color.border}
+                strokeWidth={1}
+              />
+              <SvgText
+                x={plotWidth + 4}
+                y={y + AXIS_FONT / 3}
+                fontSize={AXIS_FONT}
+                fill={theme.color.muted}
+              >
+                {formatAxisPrice(t)}
+              </SvgText>
+            </G>
+          );
+        })}
+
+        {/* Candles */}
+        {layout.map((c, i) => {
+          const color = c.up ? theme.color.up : theme.color.down;
+          return (
+            <G key={`c${i}`}>
+              <Line
+                x1={c.wickX}
+                y1={c.wickTop}
+                x2={c.wickX}
+                y2={c.wickBottom}
+                stroke={color}
+                strokeWidth={1}
+              />
+              <Rect
+                x={c.x}
+                y={c.bodyY}
+                width={c.bodyWidth}
+                height={c.bodyHeight}
+                fill={color}
+              />
+            </G>
+          );
+        })}
+
+        {/* X time labels */}
+        {labelIdx.map((idx) => {
+          const c = layout[idx];
+          if (!c) return null;
+          return (
             <SvgText
-              x={plotWidth + 4}
-              y={y + AXIS_FONT / 3}
+              key={`x${idx}`}
+              x={c.wickX}
+              y={height - 6}
               fontSize={AXIS_FONT}
               fill={theme.color.muted}
+              textAnchor="middle"
             >
-              {formatAxisPrice(t)}
+              {formatAxisTime(candles[idx].t, timeframe)}
             </SvgText>
-          </G>
-        );
-      })}
-
-      {/* Candles */}
-      {layout.map((c, i) => {
-        const color = c.up ? theme.color.up : theme.color.down;
-        return (
-          <G key={`c${i}`}>
-            <Line
-              x1={c.wickX}
-              y1={c.wickTop}
-              x2={c.wickX}
-              y2={c.wickBottom}
-              stroke={color}
-              strokeWidth={1}
-            />
-            <Rect
-              x={c.x}
-              y={c.bodyY}
-              width={c.bodyWidth}
-              height={c.bodyHeight}
-              fill={color}
-            />
-          </G>
-        );
-      })}
-
-      {/* X time labels */}
-      {labelIdx.map((idx) => {
-        const c = layout[idx];
-        if (!c) return null;
-        return (
-          <SvgText
-            key={`x${idx}`}
-            x={c.wickX}
-            y={height - 6}
-            fontSize={AXIS_FONT}
-            fill={theme.color.muted}
-            textAnchor="middle"
-          >
-            {formatAxisTime(candles[idx].t, timeframe)}
-          </SvgText>
-        );
-      })}
-    </Svg>
+          );
+        })}
+      </Svg>
+    </View>
   );
 }
