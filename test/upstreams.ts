@@ -1,4 +1,5 @@
 import { Coin, Timeframe } from '../types';
+import { krakenPairFor } from '../lib/coins';
 
 // Stubs both upstreams at the fetch boundary, so tests exercise the real merge:
 // CoinGecko answers "what is this coin", Kraken answers "what is it worth".
@@ -18,29 +19,35 @@ export const makeCoin = (overrides: Partial<Coin> = {}): Coin => ({
 
 type Metadata = Pick<
   Coin,
-  'id' | 'name' | 'symbol' | 'image' | 'market_cap' | 'total_volume'
+  | 'id'
+  | 'name'
+  | 'symbol'
+  | 'image'
+  | 'market_cap'
+  | 'total_volume'
+  | 'price_change_percentage_24h'
 >;
 
 const metadataFor = (coins: Coin[]): Metadata[] =>
-  coins.map(({ id, name, symbol, image, market_cap, total_volume }) => ({
-    id,
-    name,
-    symbol,
-    image,
-    market_cap,
-    total_volume,
-  }));
-
-const PAIRS: Record<string, string> = {
-  bitcoin: 'XXBTZUSD',
-  ethereum: 'XETHZUSD',
-  solana: 'SOLUSD',
-  cardano: 'ADAUSD',
-  ripple: 'XXRPZUSD',
-  dogecoin: 'XDGUSD',
-  polkadot: 'DOTUSD',
-  chainlink: 'LINKUSD',
-};
+  coins.map(
+    ({
+      id,
+      name,
+      symbol,
+      image,
+      market_cap,
+      total_volume,
+      price_change_percentage_24h,
+    }) => ({
+      id,
+      name,
+      symbol,
+      image,
+      market_cap,
+      total_volume,
+      price_change_percentage_24h,
+    }),
+  );
 
 // Kraken sends prices as strings and reports failure as HTTP 200 + error[].
 const tickerFor = (coins: Coin[]) => ({
@@ -50,7 +57,7 @@ const tickerFor = (coins: Coin[]) => ({
       const open =
         coin.current_price / (1 + coin.price_change_percentage_24h / 100);
       return [
-        PAIRS[coin.id],
+        krakenPairFor(coin.id)!,
         { c: [String(coin.current_price), '1.0'], o: String(open) },
       ];
     }),

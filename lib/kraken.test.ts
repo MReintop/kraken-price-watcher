@@ -1,4 +1,4 @@
-import { fetchKrakenPrices, fetchKrakenCandles } from './kraken';
+import { fetchKrakenLastPrices, fetchKrakenCandles } from './kraken';
 import { Timeframe } from '../types';
 
 const envelope = (result: unknown, error: string[] = []) => ({
@@ -21,7 +21,7 @@ const ohlcRow = (time: number, close: string) => [
 
 afterEach(() => jest.resetAllMocks());
 
-describe('fetchKrakenPrices', () => {
+describe('fetchKrakenLastPrices', () => {
   it('reads the last trade price for each pair', async () => {
     // Arrange
     globalThis.fetch = jest.fn().mockResolvedValue(
@@ -31,40 +31,10 @@ describe('fetchKrakenPrices', () => {
     ) as unknown as typeof fetch;
 
     // Act
-    const prices = await fetchKrakenPrices(['XXBTZUSD']);
+    const prices = await fetchKrakenLastPrices(['XXBTZUSD']);
 
     // Assert
-    expect(prices.get('XXBTZUSD')?.last).toBe(64788);
-  });
-
-  it('derives the 24h change from the opening price', async () => {
-    // Arrange — 110 now against an open of 100
-    globalThis.fetch = jest.fn().mockResolvedValue(
-      envelope({
-        SOLUSD: { c: ['110.0', '1.0'], o: '100.0' },
-      }),
-    ) as unknown as typeof fetch;
-
-    // Act
-    const prices = await fetchKrakenPrices(['SOLUSD']);
-
-    // Assert
-    expect(prices.get('SOLUSD')?.changePct).toBeCloseTo(10);
-  });
-
-  it('reports a fall as a negative change', async () => {
-    // Arrange
-    globalThis.fetch = jest.fn().mockResolvedValue(
-      envelope({
-        SOLUSD: { c: ['90.0', '1.0'], o: '100.0' },
-      }),
-    ) as unknown as typeof fetch;
-
-    // Act
-    const prices = await fetchKrakenPrices(['SOLUSD']);
-
-    // Assert
-    expect(prices.get('SOLUSD')?.changePct).toBeCloseTo(-10);
+    expect(prices.get('XXBTZUSD')).toBe(64788);
   });
 
   it('asks for every pair in one request', async () => {
@@ -73,7 +43,7 @@ describe('fetchKrakenPrices', () => {
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     // Act
-    await fetchKrakenPrices(['XXBTZUSD', 'SOLUSD']);
+    await fetchKrakenLastPrices(['XXBTZUSD', 'SOLUSD']);
 
     // Assert — one call, not one per pair
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -90,26 +60,11 @@ describe('fetchKrakenPrices', () => {
     ) as unknown as typeof fetch;
 
     // Act
-    const prices = await fetchKrakenPrices(['XXBTZUSD', 'SOLUSD']);
+    const prices = await fetchKrakenLastPrices(['XXBTZUSD', 'SOLUSD']);
 
     // Assert
-    expect(prices.get('XXBTZUSD')?.last).toBe(64788);
-    expect(prices.get('SOLUSD')?.last).toBe(142.5);
-  });
-
-  it('treats a zero open as no change rather than dividing by it', async () => {
-    // Arrange
-    globalThis.fetch = jest.fn().mockResolvedValue(
-      envelope({
-        SOLUSD: { c: ['10.0', '1.0'], o: '0' },
-      }),
-    ) as unknown as typeof fetch;
-
-    // Act
-    const prices = await fetchKrakenPrices(['SOLUSD']);
-
-    // Assert
-    expect(prices.get('SOLUSD')?.changePct).toBe(0);
+    expect(prices.get('XXBTZUSD')).toBe(64788);
+    expect(prices.get('SOLUSD')).toBe(142.5);
   });
 
   it('throws on an error body, which Kraken sends with HTTP 200', async () => {
@@ -121,7 +76,7 @@ describe('fetchKrakenPrices', () => {
       ) as unknown as typeof fetch;
 
     // Act / Assert
-    await expect(fetchKrakenPrices(['NOPE'])).rejects.toThrow(
+    await expect(fetchKrakenLastPrices(['NOPE'])).rejects.toThrow(
       'Unknown asset pair',
     );
   });

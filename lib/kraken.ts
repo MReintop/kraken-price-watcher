@@ -4,11 +4,6 @@ import { Candle, Timeframe } from '../types';
 const KRAKEN_BASE =
   process.env.EXPO_PUBLIC_KRAKEN_BASE_URL ?? 'https://api.kraken.com/0/public';
 
-export interface KrakenPrice {
-  last: number;
-  changePct: number;
-}
-
 // Kraken answers a failed query with HTTP 200 and a populated `error` array, so
 // `response.ok` alone would let "Unknown asset pair" through as success.
 interface KrakenEnvelope<T> {
@@ -28,27 +23,21 @@ async function krakenGet<T>(path: string): Promise<T> {
   return body.result;
 }
 
-// `c` is [last trade price, lot volume]; `o` is today's opening price.
-type TickerResult = Record<string, { c: [string, string]; o: string }>;
-
-const percentChange = (last: number, open: number) =>
-  open === 0 ? 0 : ((last - open) / open) * 100;
+// `c` is [last trade price, lot volume]. `o` is deliberately unused: it is
+// *today's* open, so it measures however long today has been — not 24 hours.
+type TickerResult = Record<string, { c: [string, string] }>;
 
 // One request for every pair. Kraken keys the response by its own canonical pair
 // name and not in the order asked, so callers must look up by name.
-export async function fetchKrakenPrices(
+export async function fetchKrakenLastPrices(
   pairs: readonly string[],
-): Promise<Map<string, KrakenPrice>> {
+): Promise<Map<string, number>> {
   const result = await krakenGet<TickerResult>(
     `/Ticker?pair=${pairs.join(',')}`,
   );
 
   return new Map(
-    Object.entries(result).map(([pair, ticker]) => {
-      const last = Number(ticker.c[0]);
-      const open = Number(ticker.o);
-      return [pair, { last, changePct: percentChange(last, open) }];
-    }),
+    Object.entries(result).map(([pair, ticker]) => [pair, Number(ticker.c[0])]),
   );
 }
 

@@ -6,7 +6,15 @@
 // come from the app talking to this instead of the real Kraken.
 import { Buffer } from 'node:buffer';
 import { createServer } from 'node:http';
+import { readFileSync } from 'node:fs';
 import { WebSocketServer } from 'ws';
+
+// The same list the app uses. A second copy here would drift the moment a coin
+// is added, and the stub would 404 a pair the app asks for.
+const TRACKED = JSON.parse(
+  readFileSync(new URL('../../lib/trackedCoins.json', import.meta.url), 'utf8'),
+);
+const pairFor = (id) => TRACKED.find((coin) => coin.id === id).pair;
 
 const PORT = Number(process.env.STUB_PORT ?? 4001);
 const TICK_MS = Number(process.env.STUB_TICK_MS ?? 1000);
@@ -16,65 +24,57 @@ const COINS = [
     id: 'bitcoin',
     name: 'Bitcoin',
     symbol: 'btc',
-    pair: 'XXBTZUSD',
     price: 62888,
-    open24h: 63814.2,
+    change24h: -1.45,
   },
   {
     id: 'ethereum',
     name: 'Ethereum',
     symbol: 'eth',
-    pair: 'XETHZUSD',
     price: 1883.21,
-    open24h: 1837.28,
+    change24h: 2.5,
   },
   {
     id: 'solana',
     name: 'Solana',
     symbol: 'sol',
-    pair: 'SOLUSD',
     price: 142.5,
-    open24h: 135.59,
+    change24h: 5.1,
   },
   {
     id: 'cardano',
     name: 'Cardano',
     symbol: 'ada',
-    pair: 'ADAUSD',
     price: 0.38,
-    open24h: 0.382871,
+    change24h: -0.75,
   },
   {
     id: 'ripple',
     name: 'XRP',
     symbol: 'xrp',
-    pair: 'XXRPZUSD',
     price: 0.52,
-    open24h: 0.513834,
+    change24h: 1.2,
   },
   {
     id: 'dogecoin',
     name: 'Dogecoin',
     symbol: 'doge',
-    pair: 'XDGUSD',
     price: 0.12,
-    open24h: 0.124224,
+    change24h: -3.4,
   },
   {
     id: 'polkadot',
     name: 'Polkadot',
     symbol: 'dot',
-    pair: 'DOTUSD',
     price: 4.15,
-    open24h: 4.11298,
+    change24h: 0.9,
   },
   {
     id: 'chainlink',
     name: 'Chainlink',
     symbol: 'link',
-    pair: 'LINKUSD',
     price: 11.3,
-    open24h: 10.8446,
+    change24h: 4.2,
   },
 ];
 
@@ -82,6 +82,8 @@ const round = (n) => Math.round(n * 100) / 100;
 
 // CoinGecko: identity only. Prices here are deliberately absent — the app takes
 // them from Kraken.
+const withPair = (coin) => ({ ...coin, pair: pairFor(coin.id) });
+
 const markets = () =>
   COINS.map((coin) => ({
     id: coin.id,
@@ -90,6 +92,7 @@ const markets = () =>
     image: `http://localhost:${PORT}/icon/${coin.id}.png`,
     market_cap: 1_000_000,
     total_volume: 500_000,
+    price_change_percentage_24h: coin.change24h,
   }));
 
 // Kraken /Ticker: `c` is [last, lotVolume], `o` is the 24h open. Prices are
@@ -97,10 +100,9 @@ const markets = () =>
 const ticker = (requested) => {
   const wanted = new Set(requested.split(','));
   return Object.fromEntries(
-    COINS.filter((coin) => wanted.has(coin.pair)).map((coin) => [
-      coin.pair,
-      { c: [String(coin.price), '1.0'], o: String(coin.open24h) },
-    ]),
+    COINS.map(withPair)
+      .filter((coin) => wanted.has(coin.pair))
+      .map((coin) => [coin.pair, { c: [String(coin.price), '1.0'] }]),
   );
 };
 
@@ -110,7 +112,7 @@ const ticker = (requested) => {
 const EPOCH_SECONDS = Date.UTC(2026, 0, 1) / 1000;
 
 const ohlc = (pair, interval) => {
-  const coin = COINS.find((entry) => entry.pair === pair);
+  const coin = COINS.map(withPair).find((entry) => entry.pair === pair);
   if (!coin) return null;
   const count = 60;
   const stepSeconds = interval * 60;

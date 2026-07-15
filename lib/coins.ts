@@ -1,6 +1,7 @@
 import { fetchWithRetry } from './http';
-import { fetchKrakenPrices } from './kraken';
+import { fetchKrakenLastPrices } from './kraken';
 import { Coin } from '../types';
+import trackedCoins from './trackedCoins.json';
 
 const COINGECKO_BASE =
   process.env.EXPO_PUBLIC_COINGECKO_BASE_URL ??
@@ -8,23 +9,28 @@ const COINGECKO_BASE =
 
 // CoinGecko says what a coin *is*; Kraken says what it is *worth*. The pair is
 // Kraken's own canonical name, which is what its responses are keyed by.
-export const TRACKED_COINS = [
-  { id: 'bitcoin', pair: 'XXBTZUSD' },
-  { id: 'ethereum', pair: 'XETHZUSD' },
-  { id: 'solana', pair: 'SOLUSD' },
-  { id: 'cardano', pair: 'ADAUSD' },
-  { id: 'ripple', pair: 'XXRPZUSD' },
-  { id: 'dogecoin', pair: 'XDGUSD' },
-  { id: 'polkadot', pair: 'DOTUSD' },
-  { id: 'chainlink', pair: 'LINKUSD' },
-] as const;
+//
+// JSON, not a TS const, because the e2e stub is a plain Node script and has to
+// read the same list — a second copy there would drift silently.
+export const TRACKED_COINS: readonly { id: string; pair: string }[] =
+  trackedCoins;
 
 export const krakenPairFor = (id: string) =>
   TRACKED_COINS.find((coin) => coin.id === id)?.pair;
 
+// The 24h change comes from here too: Kraken's REST ticker cannot express one
+// (its only reference point is today's open), while its socket sends a true 24h
+// figure. Seeding from CoinGecko keeps the window the same before and after the
+// socket connects — otherwise the number visibly flips sign on first tick.
 type CoinMetadata = Pick<
   Coin,
-  'id' | 'name' | 'symbol' | 'image' | 'market_cap' | 'total_volume'
+  | 'id'
+  | 'name'
+  | 'symbol'
+  | 'image'
+  | 'market_cap'
+  | 'total_volume'
+  | 'price_change_percentage_24h'
 >;
 
 const METADATA_URL = `${COINGECKO_BASE}/coins/markets?vs_currency=usd&ids=${TRACKED_COINS.map(
@@ -39,24 +45,18 @@ async function fetchCoinMetadata(): Promise<CoinMetadata[]> {
   return response.json();
 }
 
-// Identity from CoinGecko, price from Kraken — the same source the live socket
-// and the candles use, so every price in the app comes from one place.
+// The price comes from Kraken — the same source the socket and the candles use,
+// so the number never jumps sources. Everything else comes from CoinGecko.
 export async function fetchCoins(): Promise<Coin[]> {
-  const [metadata, prices] = await Promise.all([
+  const [metadata, lastPrices] = await Promise.all([
     fetchCoinMetadata(),
-    fetchKrakenPrices(TRACKED_COINS.map((coin) => coin.pair)),
+    fetchKrakenLastPrices(TRACKED_COINS.map((coin) => coin.pair)),
   ]);
 
   return TRACKED_COINS.flatMap(({ id, pair }) => {
     const coin = metadata.find((entry) => entry.id === id);
-    const price = prices.get(pair);
-    if (!coin || !price) return [];
-    return [
-      {
-        ...coin,
-        current_price: price.last,
-        price_change_percentage_24h: price.changePct,
-      },
-    ];
+    const last = lastPrices.get(pair);
+    if (!coin || last == null) return [];
+    return [{ ...coin, current_price: last }];
   });
 }

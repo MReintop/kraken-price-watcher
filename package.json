@@ -22,7 +22,6 @@
     "@babel/preset-react": "^7.29.7",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
-    "@testing-library/react-native": "^14.0.1",
     "@types/jest": "^30.0.0",
     "@types/react": "~19.2.2",
     "eas-cli": "^21.0.1",
