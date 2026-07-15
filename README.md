@@ -9,7 +9,8 @@ A small cross-platform crypto price watcher built with **Expo** and **React Nati
 - **Live prices** — real-time ticker updates over the [Kraken WebSocket v2](https://docs.kraken.com/websockets-v2/) (`ticker` channel), coalesced and applied to the store.
 - **Market list** — 8 major coins (BTC, ETH, SOL, ADA, XRP, DOGE, DOT, LINK), seeded from Kraken's REST `/Ticker` with identity and market context from the [CoinGecko API](https://www.coingecko.com/en/api).
 - **Candlestick chart** — per-coin OHLC candles (Kraken `/OHLC`) rendered with `react-native-svg`, across three timeframes (24H / 1M / 1Y). The live price folds into the most recent candle so the right edge moves in real time.
-- **Polished UI** — animated price transitions, an up/down tick indicator, pull-to-refresh, and a shared dark theme, with reduced-motion honoured throughout.
+- **Prices that don't lie** — the header shows the last trade, never a tween towards it; an up/down tick indicator carries the movement instead, because every intermediate frame of an interpolated price is a number that was never traded.
+- **Polished UI** — pull-to-refresh, a shared dark theme, and reduced motion honoured throughout.
 
 Every price — seed, tick and candle — comes from Kraken, so the number never jumps sources. [docs/store.md](docs/store.md) explains the split and the one Kraken field that looks usable and isn't.
 

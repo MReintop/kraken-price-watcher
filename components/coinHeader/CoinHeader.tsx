@@ -1,7 +1,7 @@
 import { View, Text, Image, StyleSheet } from 'react-native';
 import { Coin } from '../../types';
 import { getCoinDetails } from '../coinCard/CoinCardUtils';
-import AnimatedPrice from '../animatedPrice/AnimatedPrice';
+import { formatPrice } from '../../lib/formatPrice';
 import PriceTickIndicator from '../priceTickIndicator/PriceTickIndicator';
 import { theme, changeColors } from '../../theme';
 
@@ -23,7 +23,10 @@ export default function CoinHeader({ coin }: CoinHeaderProps) {
 
       <View style={styles.priceRow}>
         <View style={styles.tickSlot} />
-        <AnimatedPrice value={coin.current_price} style={styles.price} />
+        {/* The last trade, not a tween towards it: every intermediate frame of
+            an interpolation is a price that never happened. The arrow beside it
+            is the cue that something moved. */}
+        <Text style={styles.price}>{formatPrice(coin.current_price)}</Text>
         <View style={styles.tickSlot}>
           <PriceTickIndicator price={coin.current_price} />
         </View>

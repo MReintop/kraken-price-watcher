@@ -31,10 +31,12 @@ export default function PriceTickIndicator({ price }: PriceTickIndicatorProps) {
 
     // One blink: appear at full, then fade out.
     opacity.setValue(1);
+    // Opacity is one of the props the native driver supports, so the fade runs
+    // off the JS thread — which is where the ticks are arriving.
     const animation = Animated.timing(opacity, {
       toValue: 0,
       duration: 900,
-      useNativeDriver: false,
+      useNativeDriver: true,
     });
     animation.start(({ finished }) => {
       if (finished) setDirection(null);

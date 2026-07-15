@@ -40,7 +40,22 @@ describe('CoinHeader', () => {
     // Act
     render(<CoinHeader coin={coin} />);
 
-    // Assert — AnimatedPrice shows the formatted value on first render
+    // Assert
     expect(screen.getByText('$62,888')).toBeTruthy();
+  });
+
+  it('shows the new price immediately, never a value between the two', () => {
+    // Arrange
+    const { rerender } = render(
+      <CoinHeader coin={makeCoin({ current_price: 62888 })} />,
+    );
+
+    // Act — the next trade lands
+    rerender(<CoinHeader coin={makeCoin({ current_price: 63500 })} />);
+
+    // Assert — a tween would still be showing $62,888 here, then walk through
+    // prices that were never traded on the way up
+    expect(screen.getByText('$63,500')).toBeTruthy();
+    expect(screen.queryByText('$62,888')).toBeNull();
   });
 });
