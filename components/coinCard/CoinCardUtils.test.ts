@@ -92,7 +92,7 @@ describe('getCoinDetails', () => {
 
     // Assert
     expect(result.a11yLabel).toBe(
-      'Solana, $142.5, up 5.10% in the last 24 hours',
+      'Solana, $142.50, up 5.10% in the last 24 hours',
     );
   });
 });

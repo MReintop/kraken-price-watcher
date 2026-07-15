@@ -32,6 +32,9 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Use the npm that writes the lockfile
+        run: npm install -g npm@11
+
       - name: Install dependencies
         run: npm ci
 

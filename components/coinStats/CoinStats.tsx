@@ -1,8 +1,14 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { Coin } from '../../types';
+import { formatPrice } from '../../lib/formatPrice';
 import { theme } from '../../theme';
 
-function Stat({ label, value }: { label: string; value: string }) {
+interface StatProps {
+  label: string;
+  value: string;
+}
+
+function Stat({ label, value }: StatProps) {
   return (
     <View style={styles.stat}>
       <Text style={styles.label}>{label}</Text>
@@ -11,15 +17,16 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default function CoinStats({ coin }: { coin: Coin }) {
+interface CoinStatsProps {
+  coin: Coin;
+}
+
+export default function CoinStats({ coin }: CoinStatsProps) {
   return (
     <View style={styles.card}>
-      <Stat label="Market cap" value={`$${coin.market_cap.toLocaleString()}`} />
+      <Stat label="Market cap" value={formatPrice(coin.market_cap)} />
       <View style={styles.divider} />
-      <Stat
-        label="24h volume"
-        value={`$${coin.total_volume.toLocaleString()}`}
-      />
+      <Stat label="24h volume" value={formatPrice(coin.total_volume)} />
     </View>
   );
 }

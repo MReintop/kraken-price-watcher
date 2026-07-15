@@ -1,9 +1,10 @@
 import { Coin } from '../../types';
+import { formatPrice } from '../../lib/formatPrice';
 
 export function getCoinDetails(coin: Coin) {
   const up = coin.price_change_percentage_24h >= 0;
   const magnitude = Math.abs(coin.price_change_percentage_24h).toFixed(2);
-  const priceLabel = `$${coin.current_price.toLocaleString()}`;
+  const priceLabel = formatPrice(coin.current_price);
 
   return {
     name: coin.name,
