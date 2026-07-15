@@ -22,6 +22,9 @@ export default function TimeframeSelector({
             onPress={() => onChange(tf)}
             accessibilityRole="button"
             accessibilityState={{ selected }}
+            // The chip is a pill by design and about half the reachable minimum
+            // tall. hitSlop buys the target back without inflating the pill.
+            hitSlop={CHIP_HIT_SLOP}
             style={[styles.chip, selected && styles.chipSelected]}
           >
             <Text style={[styles.label, selected && styles.labelSelected]}>
@@ -33,6 +36,10 @@ export default function TimeframeSelector({
     </View>
   );
 }
+
+// Vertical only: the row is horizontally tight, so widening the sides would
+// overlap the neighbouring chip and steal its taps.
+const CHIP_HIT_SLOP = { top: 11, bottom: 11 };
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: theme.space.sm },

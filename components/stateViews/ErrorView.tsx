@@ -1,18 +1,32 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { theme } from '../../theme';
 
-type Props = { message?: string; onRetry: () => void };
+interface ErrorViewProps {
+  message?: string;
+  onRetry: () => void;
+}
 
-export default function ErrorView({ message, onRetry }: Props) {
+export default function ErrorView({ message, onRetry }: ErrorViewProps) {
   return (
     <View style={styles.center}>
       <Text style={styles.errorText}>{message ?? 'Something went wrong'}</Text>
-      <Text style={styles.retry} onPress={onRetry}>
-        Tap to retry
-      </Text>
+      {/* A Pressable, not a Text with onPress: only this announces itself as a
+          button and takes a pressed state. */}
+      <Pressable
+        onPress={onRetry}
+        accessibilityRole="button"
+        accessibilityLabel="Retry"
+        style={styles.retryTarget}
+      >
+        <Text style={styles.retry}>Tap to retry</Text>
+      </Pressable>
     </View>
   );
 }
+
+// 44 is the smallest target Apple and Android both consider reachable; the text
+// alone is about half that.
+const MIN_TARGET = 44;
 
 const styles = StyleSheet.create({
   center: {
@@ -26,6 +40,13 @@ const styles = StyleSheet.create({
     color: theme.color.down,
     fontSize: theme.font.body,
     fontWeight: '600',
+  },
+  retryTarget: {
+    minHeight: MIN_TARGET,
+    minWidth: MIN_TARGET,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: theme.space.md,
   },
   retry: {
     color: theme.color.accentText,
