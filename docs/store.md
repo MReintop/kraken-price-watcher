@@ -14,7 +14,11 @@ The price never changes source, so it never jumps. The division is enforced in `
 
 **Identity being local is what makes the other two independent.** A row needs a name, a symbol and a price to be worth rendering; two of those three are on disk. So Kraken decides whether there is a market to show, and CoinGecko only decorates it — which is why `fetchCoins()` joins them with `Promise.allSettled` and not `Promise.all`. `Promise.all` gave an artwork API a veto over every price on screen.
 
-A Kraken failure rejects the thunk: no prices, no market, error view. A CoinGecko failure resolves with `context: false` — prices render, the 24h pill is omitted rather than shown as a flat `0.00%`, and the stats card says `Market context unavailable`. `PricesScreen.test.tsx` fails CoinGecko while Kraken stays healthy and asserts the prices are still there and still ticking.
+A Kraken failure rejects the thunk: no prices, no market, error view. A CoinGecko failure resolves — prices render, the 24h pill is omitted rather than shown as a flat `0.00%`, and the stats card says `Market context unavailable`. `PricesScreen.test.tsx` fails CoinGecko while Kraken stays healthy and asserts the prices are still there and still ticking.
+
+**Missing context is read off the coin, not off a flag.** There is no `contextAvailable` in the slice: with eight fixed instruments, "CoinGecko is down" and "this coin has no context" coincide, so a flag would be a second source of truth for what `market_cap == null` already says — and one the rendered card could drift from.
+
+**`lib/coins.ts` lists CoinGecko's fields one by one instead of spreading the response.** The body is cast, not validated, so it arrives carrying its own `id`, `name` and `symbol` no matter what the type says. A spread put those over the registry's, and identity silently changed source depending on whether CoinGecko answered — the same bug the price split exists to prevent, one field over.
 
 **The 24h change is CoinGecko's on purpose**, and two Kraken fields are deliberately left unread to keep it that way.
 
