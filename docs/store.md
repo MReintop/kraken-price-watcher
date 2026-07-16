@@ -51,6 +51,10 @@ The pull-to-refresh spinner follows the prices only, for the same reason — awa
 
 So `settle()` records `settled` and the ticker branch records `ticked`; whichever lands second claims the word. A ticker is also what un-stales the feed after silence, which falls out of the same rule rather than being a second path.
 
+**A verdict belongs to the connection that reached it.** Every `connect()` clears `unavailable` before it asks, because the last connection's answer is not this one's — and a total refusal closes _without_ settling, so a stale list would outlive the socket that produced it and keep a row saying `Not updating` across a reconnect that accepted it.
+
+**`connecting` means no feed has ever arrived**, so it is the initial status and nothing sets it back. At that point the price on screen is the REST seed and is current. After a drop it is the dead socket's last, so a reconnect stays `offline` until a fresh ticker — saying "connecting" over a stale number calls it current again, which is the same lie as `Live` over a frozen one.
+
 **`stale` is the state a boolean cannot express**: connected, believed healthy, and silently frozen. Kraken heartbeats roughly every second, so ten seconds of silence is a dead connection rather than a quiet market — the socket says so and closes it, because sitting on a half-open socket while rendering "Live" is the one failure a price screen must never have.
 
 ## Two things the web does that this app must not copy
