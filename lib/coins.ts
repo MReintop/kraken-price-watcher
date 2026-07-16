@@ -25,7 +25,7 @@ export const krakenPairFor = (id: string) =>
 
 // The 24h change comes from here too: Kraken's REST ticker has no true 24h
 // reference, only today's open, so seeding from it flips sign on the first tick.
-interface CoinMetadata {
+export interface CoinContext {
   id: string;
   image: string;
   market_cap: number;
@@ -37,43 +37,39 @@ const METADATA_URL = `${COINGECKO_BASE}/coins/markets?vs_currency=usd&ids=${TRAC
   (coin) => coin.id,
 ).join(',')}&price_change_percentage=24h`;
 
-async function fetchCoinMetadata(): Promise<CoinMetadata[]> {
+// Fetched on its own, and never awaited by the prices: this call is retried, and
+// a rate limit with a long Retry-After would otherwise hold every Kraken price
+// off the screen for the length of CoinGecko's backoff.
+//
+// Mapped field by field rather than returned whole: the body is cast, not
+// validated, so it carries its own id, name and symbol no matter what the type
+// says, and identity belongs to the registry.
+export async function fetchMarketContext(): Promise<CoinContext[]> {
   const response = await fetchWithRetry(METADATA_URL);
   if (!response.ok) {
     throw new Error(`CoinGecko markets: HTTP ${response.status}`);
   }
-  return response.json();
+  const body = (await response.json()) as CoinContext[];
+  return body.map(
+    ({ id, image, market_cap, total_volume, price_change_percentage_24h }) => ({
+      id,
+      image,
+      market_cap,
+      total_volume,
+      price_change_percentage_24h,
+    }),
+  );
 }
 
-// Kraken decides whether there is a market to show; CoinGecko only decorates it,
-// so only Kraken's failure is this function's failure.
+// Kraken alone decides whether there is a market to show.
 export async function fetchCoins(): Promise<Coin[]> {
-  const [metadata, lastPrices] = await Promise.allSettled([
-    fetchCoinMetadata(),
-    fetchKrakenLastPrices(TRACKED_COINS.map((coin) => coin.pair)),
-  ]);
-
-  if (lastPrices.status === 'rejected') throw lastPrices.reason;
-  const enrichment = metadata.status === 'fulfilled' ? metadata.value : [];
+  const lastPrices = await fetchKrakenLastPrices(
+    TRACKED_COINS.map((coin) => coin.pair),
+  );
 
   return TRACKED_COINS.flatMap(({ id, name, symbol, pair }) => {
-    const last = lastPrices.value.get(pair);
+    const last = lastPrices.get(pair);
     if (last == null) return [];
-    // Listed field by field rather than spread: the response is cast, not
-    // validated, so it carries its own id/name/symbol whatever the type says,
-    // and a spread would let identity change source with CoinGecko's health.
-    const context = enrichment.find((entry) => entry.id === id);
-    return [
-      {
-        id,
-        name,
-        symbol,
-        current_price: last,
-        image: context?.image,
-        market_cap: context?.market_cap,
-        total_volume: context?.total_volume,
-        price_change_percentage_24h: context?.price_change_percentage_24h,
-      },
-    ];
+    return [{ id, name, symbol, current_price: last }];
   });
 }

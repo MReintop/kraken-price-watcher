@@ -93,6 +93,10 @@ export interface StubOptions {
   coins?: Coin[];
   /** Fail the CoinGecko market-context call with this status. */
   metadataStatus?: number;
+  /** Retry-After seconds on the CoinGecko failure, making it a retried one. */
+  metadataRetryAfter?: string;
+  /** Delay the CoinGecko answer, so the Kraken prices land first. */
+  metadataDelayMs?: number;
   /** Fail the Kraken REST seed with this status. */
   tickerStatus?: number;
 }
@@ -101,12 +105,26 @@ export interface StubOptions {
 export const stubUpstreams = ({
   coins = [makeCoin()],
   metadataStatus,
+  metadataRetryAfter,
+  metadataDelayMs,
   tickerStatus,
 }: StubOptions = {}) => {
   const fetchMock = jest.fn(async (url: string) => {
     if (url.includes('/coins/markets')) {
+      if (metadataDelayMs) {
+        await new Promise((resolve) => setTimeout(resolve, metadataDelayMs));
+      }
       if (metadataStatus) {
-        return { ok: false, status: metadataStatus, headers: noHeaders };
+        return {
+          ok: false,
+          status: metadataStatus,
+          headers: {
+            get: (name: string) =>
+              name.toLowerCase() === 'retry-after'
+                ? (metadataRetryAfter ?? null)
+                : null,
+          },
+        };
       }
       return json(metadataFor(coins));
     }

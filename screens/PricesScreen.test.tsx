@@ -2,6 +2,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import coinsReducer, {
+  fetchMarketContext,
   socketStatusChanged,
   subscriptionsSettled,
   tickersApplied,
@@ -158,6 +159,54 @@ describe('PricesScreen (integration with a real store)', () => {
       // Assert
       expect(screen.queryByText(/HTTP 404/)).toBeNull();
     });
+
+    it('does not wait out CoinGecko’s retry schedule to show a price', async () => {
+      // Arrange — a rate limit is the failure that actually happens, and unlike a
+      // 404 it is retried: three sleeps of up to thirty seconds each
+      stubUpstreams({
+        coins: [makeCoin({ current_price: 64788 })],
+        metadataStatus: 429,
+        metadataRetryAfter: '30',
+      });
+
+      // Act
+      renderScreen();
+
+      // Assert — Kraken answered at once, so the price is already known; holding
+      // it for CoinGecko's backoff is a blank screen for a minute and a half
+      expect(await screen.findByText(/64,788/)).toBeTruthy();
+    });
+  });
+
+  it('decorates the prices when context arrives after them', async () => {
+    // Arrange — Kraken answers first, which is the whole point of not joining
+    // the two: the row is on screen before CoinGecko has said anything
+    stubUpstreams({
+      coins: [
+        makeCoin({ market_cap: 1234567, price_change_percentage_24h: 2.5 }),
+      ],
+      metadataDelayMs: 40,
+    });
+    const { store } = renderScreen();
+    await screen.findByText('Bitcoin');
+    expect(screen.queryByText('▲ 2.50%')).toBeNull();
+
+    // Assert — context catches up and lands on a row already rendered
+    expect(await screen.findByText('▲ 2.50%')).toBeTruthy();
+    expect(store.getState().coins.items[0].market_cap).toBe(1234567);
+  });
+
+  it('decorates the prices when context arrives before them', async () => {
+    // Arrange — a store that already holds context, as a slow Kraken would leave it
+    const store = setupStore();
+    stubUpstreams({ coins: [makeCoin({ price_change_percentage_24h: 2.5 })] });
+    await store.dispatch(fetchMarketContext());
+
+    // Act — the prices land second
+    renderScreen(store);
+
+    // Assert — context waiting in the store must not be dropped on the floor
+    expect(await screen.findByText('▲ 2.50%')).toBeTruthy();
   });
 
   it('shows a live tick without refetching', async () => {
