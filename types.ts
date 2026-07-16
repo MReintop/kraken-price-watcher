@@ -1,6 +1,5 @@
-// Identity comes from the local registry and the price from Kraken, so both are
-// always here. The rest is CoinGecko's market context: optional because it is a
-// second upstream, and a coin with no context is still a coin with a price.
+// Identity is local and the price is Kraken's, so both are always here. The rest
+// is CoinGecko's market context — a coin without it is still a coin with a price.
 export type Coin = {
   id: string;
   name: string;

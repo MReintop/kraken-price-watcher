@@ -25,8 +25,7 @@ const DOT: Record<SocketStatus, string> = {
 };
 
 // A connection carrying seven of eight symbols is not "Live" — that word covers
-// for the one frozen row. The count is in the text because a dot cannot say
-// which of the two it means.
+// for the frozen row. The count goes in the text: a dot cannot say which.
 const summarise = (status: SocketStatus, tracked: number, refused: number) => {
   if (status !== 'live' || refused === 0 || tracked === 0) {
     return { label: LABEL[status], dot: DOT[status] };

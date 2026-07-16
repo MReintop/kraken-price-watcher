@@ -45,9 +45,8 @@ async function fetchCoinMetadata(): Promise<CoinMetadata[]> {
   return response.json();
 }
 
-// Kraken decides whether there is a market to show; CoinGecko only decorates it.
-// Joining them with `Promise.all` would give an artwork API a veto over every
-// price on screen.
+// Kraken decides whether there is a market to show; CoinGecko only decorates it,
+// so only Kraken's failure is this function's failure.
 export async function fetchCoins(): Promise<Coin[]> {
   const [metadata, lastPrices] = await Promise.allSettled([
     fetchCoinMetadata(),
