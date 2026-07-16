@@ -22,9 +22,14 @@ const CHART_HEIGHT = 200;
 interface CoinChartProps {
   coinId: string;
   livePrice: number;
+  priceDecimals: number;
 }
 
-export default function CoinChart({ coinId, livePrice }: CoinChartProps) {
+export default function CoinChart({
+  coinId,
+  livePrice,
+  priceDecimals,
+}: CoinChartProps) {
   const [timeframe, setTimeframe] = useState<Timeframe>(Timeframe.Month);
   const { candles, status } = useCandles(coinId, timeframe);
 
@@ -76,6 +81,7 @@ export default function CoinChart({ coinId, livePrice }: CoinChartProps) {
             width={chartWidth}
             height={CHART_HEIGHT}
             timeframe={timeframe}
+            priceDecimals={priceDecimals}
           />
         )}
       </View>

@@ -1,5 +1,5 @@
 import { fetchWithRetry } from './http';
-import { fetchKrakenLastPrices } from './kraken';
+import { fetchKrakenLastPrices, fetchKrakenPairDecimals } from './kraken';
 import { Coin } from '../types';
 import trackedCoins from './trackedCoins.json';
 
@@ -56,13 +56,17 @@ export async function fetchMarketContext(): Promise<CoinContext[]> {
 
 // Kraken alone decides whether there is a market to show.
 export async function fetchCoins(): Promise<Coin[]> {
-  const lastPrices = await fetchKrakenLastPrices(
-    TRACKED_COINS.map((coin) => coin.pair),
-  );
+  const pairs = TRACKED_COINS.map((coin) => coin.pair);
+  const [lastPrices, decimals] = await Promise.all([
+    fetchKrakenLastPrices(pairs),
+    fetchKrakenPairDecimals(pairs),
+  ]);
 
   return TRACKED_COINS.flatMap(({ id, name, symbol, pair }) => {
     const last = lastPrices.get(pair);
-    if (last == null) return [];
-    return [{ id, name, symbol, current_price: last }];
+    const places = decimals.get(pair);
+    // No precision to render it at, so dropped like a missing price, not guessed.
+    if (last == null || places == null) return [];
+    return [{ id, name, symbol, current_price: last, price_decimals: places }];
   });
 }

@@ -9,6 +9,7 @@ const makeCoin = (overrides: Partial<Coin> = {}): Coin => ({
   symbol: 'btc',
   image: 'x',
   current_price: 62888,
+  price_decimals: 1,
   price_change_percentage_24h: -1.45,
   market_cap: 0,
   total_volume: 0,
@@ -24,7 +25,7 @@ describe('getCoinDetails', () => {
     const result = getCoinDetails(coin, true);
 
     // Assert
-    expect(result.priceLabel).toBe('$62,888');
+    expect(result.priceLabel).toBe('$62,888.0');
   });
 
   it('marks a negative change as down + red', () => {
@@ -75,7 +76,7 @@ describe('getCoinDetails', () => {
 
     // Assert
     expect(result.a11yLabel).toBe(
-      'Bitcoin, $62,888, down 1.45% in the last 24 hours',
+      'Bitcoin, $62,888.0, down 1.45% in the last 24 hours',
     );
   });
 
@@ -84,6 +85,7 @@ describe('getCoinDetails', () => {
     const coin = makeCoin({
       name: 'Solana',
       current_price: 142.5,
+      price_decimals: 2,
       price_change_percentage_24h: 5.1,
     });
 

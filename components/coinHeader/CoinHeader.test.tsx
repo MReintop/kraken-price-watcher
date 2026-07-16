@@ -8,6 +8,7 @@ const makeCoin = (overrides: Partial<Coin> = {}): Coin => ({
   symbol: 'btc',
   image: 'x',
   current_price: 62888,
+  price_decimals: 1,
   price_change_percentage_24h: -1.45,
   market_cap: 0,
   total_volume: 0,
@@ -41,7 +42,7 @@ describe('CoinHeader', () => {
     render(<CoinHeader coin={coin} updating />);
 
     // Assert
-    expect(screen.getByText('$62,888')).toBeTruthy();
+    expect(screen.getByText('$62,888.0')).toBeTruthy();
   });
 
   it('shows the new price immediately, never a value between the two', () => {
@@ -55,7 +56,7 @@ describe('CoinHeader', () => {
 
     // Assert — a tween would still be showing $62,888 here, then walk through
     // prices that were never traded on the way up
-    expect(screen.getByText('$63,500')).toBeTruthy();
-    expect(screen.queryByText('$62,888')).toBeNull();
+    expect(screen.getByText('$63,500.0')).toBeTruthy();
+    expect(screen.queryByText('$62,888.0')).toBeNull();
   });
 });

@@ -32,7 +32,9 @@ export default function CoinHeader({ coin, updating }: CoinHeaderProps) {
         {/* The last trade, not a tween towards it: every intermediate frame of
             an interpolation is a price that never happened. The arrow beside it
             is the cue that something moved. */}
-        <Text style={styles.price}>{formatPrice(coin.current_price)}</Text>
+        <Text style={styles.price}>
+          {formatPrice(coin.current_price, coin.price_decimals)}
+        </Text>
         <View style={styles.tickSlot}>
           <PriceTickIndicator price={coin.current_price} />
         </View>

@@ -27,7 +27,11 @@ export default function CoinDetailScreen({ route, navigation }: Props) {
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
       <CoinHeader coin={coin} updating={!unavailable} />
-      <CoinChart coinId={coin.id} livePrice={coin.current_price} />
+      <CoinChart
+        coinId={coin.id}
+        livePrice={coin.current_price}
+        priceDecimals={coin.price_decimals}
+      />
       <CoinStats coin={coin} />
     </SafeAreaView>
   );

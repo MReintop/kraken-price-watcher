@@ -257,7 +257,7 @@ describe('describeCandles', () => {
 
   it('summarises the range, direction and extremes', () => {
     // Arrange / Act
-    const result = describeCandles(series, Timeframe.Month);
+    const result = describeCandles(series, Timeframe.Month, 2);
 
     // Assert — the shape a sighted user takes in at a glance
     expect(result).toBe(
@@ -273,7 +273,7 @@ describe('describeCandles', () => {
     ];
 
     // Act
-    const result = describeCandles(falling, Timeframe.Day);
+    const result = describeCandles(falling, Timeframe.Day, 2);
 
     // Assert
     expect(result).toContain('last 24 hours');
@@ -289,7 +289,7 @@ describe('describeCandles', () => {
     ];
 
     // Act
-    const result = describeCandles(spiky, Timeframe.Year);
+    const result = describeCandles(spiky, Timeframe.Year, 2);
 
     // Assert
     expect(result).toContain('High $500.00, low $10.00');
@@ -297,7 +297,7 @@ describe('describeCandles', () => {
 
   it('says so rather than inventing a range when there is no data', () => {
     // Arrange / Act
-    const result = describeCandles([], Timeframe.Month);
+    const result = describeCandles([], Timeframe.Month, 2);
 
     // Assert
     expect(result).toBe('Price chart, last month. No data.');

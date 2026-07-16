@@ -8,6 +8,7 @@ const makeCoin = (overrides: Partial<Coin> = {}): Coin => ({
   symbol: 'btc',
   image: 'x',
   current_price: 62888,
+  price_decimals: 1,
   price_change_percentage_24h: -1.45,
   market_cap: 0,
   total_volume: 0,

@@ -23,6 +23,7 @@ interface CandlestickChartProps {
   width: number;
   height: number;
   timeframe: Timeframe;
+  priceDecimals: number;
 }
 
 export default function CandlestickChart({
@@ -30,6 +31,7 @@ export default function CandlestickChart({
   width,
   height,
   timeframe,
+  priceDecimals,
 }: CandlestickChartProps) {
   const plotWidth = Math.max(width - RIGHT_AXIS, 0);
   const plotHeight = Math.max(height - BOTTOM_AXIS, 0);
@@ -55,7 +57,7 @@ export default function CandlestickChart({
     <View
       accessible
       accessibilityRole="image"
-      accessibilityLabel={describeCandles(candles, timeframe)}
+      accessibilityLabel={describeCandles(candles, timeframe, priceDecimals)}
     >
       <Svg width={width} height={height}>
         {/* Y gridlines + price labels */}

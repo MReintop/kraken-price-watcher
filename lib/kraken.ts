@@ -41,6 +41,42 @@ export async function fetchKrakenLastPrices(
   );
 }
 
+// `pair_decimals` is how many decimals a price on this market can have; magnitude
+// can only guess it. Intl throws past 20 fraction digits, so a wrong answer here
+// would crash the render rather than misprint it.
+type AssetPairsResult = Record<string, { pair_decimals: number }>;
+
+function toDecimals(raw: unknown, pair: string): number {
+  if (
+    typeof raw !== 'number' ||
+    !Number.isInteger(raw) ||
+    raw < 0 ||
+    raw > 20
+  ) {
+    throw new Error(`Kraken ${pair}: expected a decimal count, got ${raw}`);
+  }
+  return raw;
+}
+
+// Reference data: a pair's precision changes about never, so callers cache it far
+// longer than a price.
+export async function fetchKrakenPairDecimals(
+  pairs: readonly string[],
+  signal?: AbortSignal,
+): Promise<Map<string, number>> {
+  const result = await krakenGet<AssetPairsResult>(
+    `/AssetPairs?pair=${pairs.join(',')}`,
+    signal,
+  );
+
+  return new Map(
+    Object.entries(result).map(([pair, meta]) => [
+      pair,
+      toDecimals(meta?.pair_decimals, pair),
+    ]),
+  );
+}
+
 // Kraken buckets candles by minutes-per-candle, so a timeframe is an interval
 // plus how many of those candles to keep.
 const TIMEFRAME_INTERVALS: Record<

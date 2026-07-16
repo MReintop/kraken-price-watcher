@@ -5,6 +5,8 @@ export type Coin = {
   name: string;
   symbol: string;
   current_price: number;
+  // Kraken's precision for this market — a fact about the pair, not the number.
+  price_decimals: number;
   image?: string;
   price_change_percentage_24h?: number;
   market_cap?: number;

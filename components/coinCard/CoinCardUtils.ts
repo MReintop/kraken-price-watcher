@@ -2,7 +2,7 @@ import { Coin } from '../../types';
 import { formatPrice } from '../../lib/formatPrice';
 
 export function getCoinDetails(coin: Coin, updating: boolean) {
-  const priceLabel = formatPrice(coin.current_price);
+  const priceLabel = formatPrice(coin.current_price, coin.price_decimals);
   // Said, not implied by a greyer pixel: this price is real and frozen, which
   // looks exactly like a market that is not moving.
   const frozen = updating ? '' : ', not updating';
