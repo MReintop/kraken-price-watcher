@@ -1,7 +1,11 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
-import coinsReducer, { tickersApplied } from '../store/coinsSlice';
+import coinsReducer, {
+  socketStatusChanged,
+  subscriptionsSettled,
+  tickersApplied,
+} from '../store/coinsSlice';
 import { NavigateKey } from '../types';
 import { makeCoin, stubUpstreams } from '../test/upstreams';
 import PricesScreen from './PricesScreen';
@@ -148,5 +152,93 @@ describe('PricesScreen (integration with a real store)', () => {
     // Assert
     expect(await screen.findByText(/11,111/)).toBeTruthy();
     expect(screen.getByText(/22,222/)).toBeTruthy();
+  });
+
+  // The socket settling with one symbol refused is the state these assert. The
+  // socket's own tests prove it dispatches that; only a rendered screen proves
+  // anybody is listening.
+  describe('a partially subscribed feed', () => {
+    const renderTwoCoins = async () => {
+      stubUpstreams({
+        coins: [
+          makeCoin(),
+          makeCoin({ id: 'ethereum', name: 'Ethereum', symbol: 'eth' }),
+        ],
+      });
+      const rendered = renderScreen();
+      await screen.findByText('Bitcoin');
+      return rendered;
+    };
+
+    const settleWith = (
+      store: ReturnType<typeof setupStore>,
+      refused: string[],
+    ) =>
+      act(() => {
+        store.dispatch(subscriptionsSettled(refused));
+        store.dispatch(socketStatusChanged('live'));
+      });
+
+    it('marks the refused coin rather than leaving its seed looking current', async () => {
+      // Arrange
+      const { store } = await renderTwoCoins();
+
+      // Act — Kraken took BTC and refused ETH
+      settleWith(store, ['ETH']);
+
+      // Assert — ETH still shows its REST seed, and now says so
+      expect(await screen.findByText('Not updating')).toBeTruthy();
+    });
+
+    it('counts the degraded feed in the header', async () => {
+      // Arrange
+      const { store } = await renderTwoCoins();
+
+      // Act
+      settleWith(store, ['ETH']);
+
+      // Assert — "Live" here would cover for the frozen row
+      expect(await screen.findByText('Degraded 1/2')).toBeTruthy();
+      expect(screen.queryByText('Live')).toBeNull();
+    });
+
+    it('counts only the coins actually on screen', async () => {
+      // Arrange — the socket subscribes from the local registry, so it can refuse
+      // a symbol Kraken's REST seed never returned a price for
+      stubUpstreams({ coins: [makeCoin()] });
+      const { store } = renderScreen();
+      await screen.findByText('Bitcoin');
+
+      // Act — ETH is refused, and was never rendered
+      settleWith(store, ['ETH']);
+
+      // Assert — every row on screen is live; counting a refusal for a row that
+      // does not exist reports a shortfall against the wrong total
+      expect(await screen.findByText('Live')).toBeTruthy();
+    });
+
+    it('leaves a fully subscribed feed saying Live', async () => {
+      // Arrange
+      const { store } = await renderTwoCoins();
+
+      // Act
+      settleWith(store, []);
+
+      // Assert
+      expect(await screen.findByText('Live')).toBeTruthy();
+      expect(screen.queryByText('Not updating')).toBeNull();
+    });
+
+    it('marks only the refused row', async () => {
+      // Arrange
+      const { store } = await renderTwoCoins();
+
+      // Act
+      settleWith(store, ['ETH']);
+      await screen.findByText('Not updating');
+
+      // Assert — BTC was accepted, so nothing on its card should say otherwise
+      expect(screen.getAllByText('Not updating')).toHaveLength(1);
+    });
   });
 });

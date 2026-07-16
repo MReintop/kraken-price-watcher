@@ -156,6 +156,17 @@ export function startKrakenTicker(
     const awaiting = new Set(pairs);
     const refused = new Set<string>();
 
+    // Both halves of the word, tracked apart because they arrive in either order.
+    // `settled` is knowing which symbols we are subscribed to; `ticked` is data
+    // actually flowing. An acknowledgement is only a promise to send data, and
+    // one symbol trading is not a feed — until both hold, the number on screen is
+    // still the REST seed and calling it live would cover for it.
+    let settled = false;
+    let ticked = false;
+    const claimLive = () => {
+      if (settled && ticked) setStatus('live');
+    };
+
     const settle = () => {
       if (awaiting.size > 0 || !isCurrent(conn)) return;
       conn.handshakeTimer = stopTimer(conn.handshakeTimer);
@@ -169,7 +180,8 @@ export function startKrakenTicker(
 
       backoff = 1000; // at least one symbol is genuinely subscribed
       dispatch(subscriptionsSettled([...refused].map(baseOf)));
-      setStatus('live');
+      settled = true;
+      claimLive();
     };
 
     socket.onopen = () => {
@@ -225,7 +237,8 @@ export function startKrakenTicker(
       }
 
       if (msg.channel !== 'ticker' || !Array.isArray(msg.data)) return;
-      setStatus('live'); // a frame after silence un-stales
+      ticked = true;
+      claimLive(); // also what un-stales the feed after silence
       for (const t of msg.data) {
         // Checked, not trusted: the frame is JSON off a socket. A price that is
         // not a finite number reaches chart geometry and draws nothing at all,

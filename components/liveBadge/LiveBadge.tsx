@@ -4,6 +4,8 @@ import type { SocketStatus } from '../../store/coinsSlice';
 
 interface LiveBadgeProps {
   status: SocketStatus;
+  tracked: number;
+  unavailable: number;
 }
 
 // `stale` is the one worth shouting about: the prices are still on screen and
@@ -22,16 +24,35 @@ const DOT: Record<SocketStatus, string> = {
   offline: theme.color.muted,
 };
 
-export default function LiveBadge({ status }: LiveBadgeProps) {
+// A connection carrying seven of eight symbols is not "Live" — that word covers
+// for the one frozen row. The count is in the text because a dot cannot say
+// which of the two it means.
+const summarise = (status: SocketStatus, tracked: number, refused: number) => {
+  if (status !== 'live' || refused === 0 || tracked === 0) {
+    return { label: LABEL[status], dot: DOT[status] };
+  }
+  return {
+    label: `Degraded ${tracked - refused}/${tracked}`,
+    dot: theme.color.down,
+  };
+};
+
+export default function LiveBadge({
+  status,
+  tracked,
+  unavailable,
+}: LiveBadgeProps) {
+  const { label, dot } = summarise(status, tracked, unavailable);
+
   return (
     <View
       style={styles.live}
       accessibilityRole="text"
       accessibilityLiveRegion="polite"
-      accessibilityLabel={`Price feed: ${LABEL[status]}`}
+      accessibilityLabel={`Price feed: ${label}`}
     >
-      <View style={[styles.dot, { backgroundColor: DOT[status] }]} />
-      <Text style={styles.liveText}>{LABEL[status]}</Text>
+      <View style={[styles.dot, { backgroundColor: dot }]} />
+      <Text style={styles.liveText}>{label}</Text>
     </View>
   );
 }

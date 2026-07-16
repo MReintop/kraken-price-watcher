@@ -21,7 +21,7 @@ describe('getCoinDetails', () => {
     const coin = makeCoin({ current_price: 62888 });
 
     // Act
-    const result = getCoinDetails(coin);
+    const result = getCoinDetails(coin, true);
 
     // Assert
     expect(result.priceLabel).toBe('$62,888');
@@ -32,7 +32,7 @@ describe('getCoinDetails', () => {
     const coin = makeCoin({ price_change_percentage_24h: -1.45 });
 
     // Act
-    const result = getCoinDetails(coin);
+    const result = getCoinDetails(coin, true);
 
     // Assert
     expect(result.isUp).toBe(false);
@@ -44,7 +44,7 @@ describe('getCoinDetails', () => {
     const coin = makeCoin({ price_change_percentage_24h: 2.5 });
 
     // Act
-    const result = getCoinDetails(coin);
+    const result = getCoinDetails(coin, true);
 
     // Assert
     expect(result.isUp).toBe(true);
@@ -56,7 +56,7 @@ describe('getCoinDetails', () => {
     const coin = makeCoin({ price_change_percentage_24h: -1.45 });
 
     // Act
-    const result = getCoinDetails(coin);
+    const result = getCoinDetails(coin, true);
 
     // Assert — the arrow already says it; "▼ -1.45%" says it twice
     expect(result.changeLabel).toBe('▼ 1.45%');
@@ -71,7 +71,7 @@ describe('getCoinDetails', () => {
     });
 
     // Act
-    const result = getCoinDetails(coin);
+    const result = getCoinDetails(coin, true);
 
     // Assert
     expect(result.a11yLabel).toBe(
@@ -88,7 +88,7 @@ describe('getCoinDetails', () => {
     });
 
     // Act
-    const result = getCoinDetails(coin);
+    const result = getCoinDetails(coin, true);
 
     // Assert
     expect(result.a11yLabel).toBe(

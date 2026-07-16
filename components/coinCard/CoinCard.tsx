@@ -9,7 +9,10 @@ import {
 import { getCoinDetails } from './CoinCardUtils';
 import { theme, webTransition, changeColors } from '../../theme';
 import { useAppSelector } from '../../store/hooks';
-import { selectCoinById } from '../../store/coinsSlice';
+import {
+  selectCoinById,
+  selectIsCoinUnavailable,
+} from '../../store/coinsSlice';
 
 interface CoinCardProps {
   coinId: string;
@@ -20,9 +23,10 @@ type WebPressableState = PressableStateCallbackType & { hovered?: boolean };
 
 export default function CoinCard({ coinId, onSelect }: CoinCardProps) {
   const coin = useAppSelector(selectCoinById(coinId));
+  const unavailable = useAppSelector(selectIsCoinUnavailable(coinId));
   if (!coin) return null;
 
-  const coinDetails = getCoinDetails(coin);
+  const coinDetails = getCoinDetails(coin, !unavailable);
   const change = changeColors(coinDetails.isUp);
 
   return (
@@ -59,6 +63,8 @@ export default function CoinCard({ coinId, onSelect }: CoinCardProps) {
       <Text style={styles.price} numberOfLines={1}>
         {coinDetails.priceLabel}
       </Text>
+
+      {unavailable && <Text style={styles.frozen}>Not updating</Text>}
 
       <View style={[styles.pill, { backgroundColor: change.tint }]}>
         <Text style={[styles.change, { color: change.fg }]}>
@@ -101,6 +107,11 @@ const styles = StyleSheet.create({
     color: theme.color.text,
     fontSize: theme.font.h2,
     fontWeight: '800',
+  },
+  frozen: {
+    color: theme.color.down,
+    fontSize: theme.font.caption,
+    fontWeight: '600',
   },
   pill: {
     alignSelf: 'flex-start', // hug the change text, don't stretch full width

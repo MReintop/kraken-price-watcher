@@ -15,7 +15,16 @@ These are not optional background. Each documents decisions that are invisible i
 # Conventions
 
 - **Formatting is prettier's job, correctness is eslint's.** Don't hand-format, and don't add stylistic eslint rules — `eslint-config-prettier` turns them off on purpose.
-- **Hooks run automatically:** `pre-commit` runs prettier + eslint over staged files. Don't `--no-verify` around a failure; fix it.
+- **Hooks run automatically:** `pre-commit` runs prettier + eslint over staged files, then the full Jest suite. Don't `--no-verify` around a failure; fix it.
+
+## A claim about behaviour needs a test that fails without it
+
+Comments and docs here describe network and lifecycle behaviour that is invisible in the code and silent when broken — which is exactly the kind of claim that rots into a confident lie. Two of them already had: a comment promised a timeout was retried when no `catch` existed, and the store computed a refused symbol that no screen ever read.
+
+So when you add or change a claim about a retry, a deadline, a reconnect, or a feed's health:
+
+- **Write the test against the old code first and watch it fail.** A test written after the fix proves the fix runs, not that it was needed. If it passes on the unfixed file, it is asserting the wrong thing — that is a finding, not a formality.
+- **Assert the outcome, not the step.** "The action was dispatched" cannot catch a missing consumer, and a dispatched action is not a price on a screen. Assert what the user would see.
 
 ## Props get a named interface
 

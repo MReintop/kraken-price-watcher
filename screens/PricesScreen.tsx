@@ -16,6 +16,7 @@ import {
   selectCoinsError,
   selectCoinsStatus,
   selectSocketStatus,
+  selectUnavailableOnScreen,
 } from '../store/coinsSlice';
 
 type Props = NativeStackScreenProps<RootStackParamList, NavigateKey.Prices>;
@@ -27,6 +28,7 @@ export default function PricesScreen({ navigation }: Props) {
   const status = useAppSelector(selectCoinsStatus);
   const error = useAppSelector(selectCoinsError);
   const socket = useAppSelector(selectSocketStatus);
+  const unavailable = useAppSelector(selectUnavailableOnScreen);
 
   useEffect(() => {
     dispatch(fetchCoins());
@@ -44,7 +46,11 @@ export default function PricesScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
-      <MarketsHeader status={socket} />
+      <MarketsHeader
+        status={socket}
+        tracked={coinIds.length}
+        unavailable={unavailable}
+      />
       <CoinList
         coinIds={coinIds}
         onSelect={(id) =>
