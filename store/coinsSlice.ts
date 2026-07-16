@@ -98,7 +98,15 @@ export const selectCoins = (s: RootState) => s.coins.items;
 export const selectCoinsStatus = (s: RootState) => s.coins.status;
 export const selectCoinsError = (s: RootState) => s.coins.error;
 export const selectSocketStatus = (s: RootState) => s.coins.socket;
-export const selectUnavailable = (s: RootState) => s.coins.unavailable;
+
+// Refusals counted against the rows that exist. The socket subscribes from the
+// local registry, so it can refuse a symbol the REST seed never priced and no
+// row was ever built for — counting that as a shortfall reports it against a
+// total it was never part of.
+export const selectUnavailableOnScreen = (s: RootState) =>
+  s.coins.items.filter((coin) =>
+    s.coins.unavailable.includes(coin.symbol.toUpperCase()),
+  ).length;
 
 // Per-coin, so one refused symbol re-renders one row rather than the list.
 export const selectIsCoinUnavailable = (id: string) => (s: RootState) => {

@@ -202,6 +202,21 @@ describe('PricesScreen (integration with a real store)', () => {
       expect(screen.queryByText('Live')).toBeNull();
     });
 
+    it('counts only the coins actually on screen', async () => {
+      // Arrange — the socket subscribes from the local registry, so it can refuse
+      // a symbol Kraken's REST seed never returned a price for
+      stubUpstreams({ coins: [makeCoin()] });
+      const { store } = renderScreen();
+      await screen.findByText('Bitcoin');
+
+      // Act — ETH is refused, and was never rendered
+      settleWith(store, ['ETH']);
+
+      // Assert — every row on screen is live; counting a refusal for a row that
+      // does not exist reports a shortfall against the wrong total
+      expect(await screen.findByText('Live')).toBeTruthy();
+    });
+
     it('leaves a fully subscribed feed saying Live', async () => {
       // Arrange
       const { store } = await renderTwoCoins();
