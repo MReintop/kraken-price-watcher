@@ -7,9 +7,8 @@ import {
 } from '../lib/coins';
 import type { RootState } from './store';
 
-// An open socket is not a working feed. `live` means Kraken answered for every
-// symbol *and* a ticker has landed since; `stale` is the dangerous state a
-// boolean cannot express — connected, believed healthy, and silently frozen.
+// `live` needs an ack for every symbol and a ticker since; `stale` is the one a
+// boolean cannot express — connected, believed healthy, silently frozen.
 export type SocketStatus = 'connecting' | 'live' | 'stale' | 'offline';
 
 interface CoinsState {
@@ -17,15 +16,11 @@ interface CoinsState {
   status: FetchStatus;
   error?: string;
   socket: SocketStatus;
-  // Symbols Kraken refused, or never answered for. Their prices are whatever the
-  // REST seed last said and will not move.
+  // Symbols Kraken refused: their price is the frozen REST seed.
   unavailable: string[];
-  // Kept rather than merged and dropped: the two upstreams are independent, so
-  // context can arrive before the prices it decorates and would have nowhere to
-  // go. Read whenever either side lands.
+  // Kept, not merged-and-dropped: context can land before the prices it decorates.
   context: Record<string, CoinContext>;
-  // The request whose answer is still wanted. Context requests overlap — mount
-  // and pull-to-refresh — and answering last is not the same as being newest.
+  // Guards against a slow earlier context request overwriting a newer one.
   contextRequestId?: string;
 }
 
@@ -37,9 +32,8 @@ const initialState: CoinsState = {
   context: {},
 };
 
-// Price only. Kraken's `change_pct` is its own spot market while the 24h figure
-// on screen is CoinGecko's cross-exchange one — same window, different venue, so
-// taking it would swap the source under the label on the first tick.
+// Price only: change_pct is Kraken's venue, the on-screen 24h is CoinGecko's
+// cross-exchange one, so taking it would swap the source under the label.
 export interface KrakenTick {
   symbol: string; // base symbol, upper-case (e.g. "BTC")
   last: number;
@@ -53,8 +47,8 @@ const decorate = (coin: Coin, context?: CoinContext) => {
   coin.price_change_percentage_24h = context.price_change_percentage_24h;
 };
 
-// rejectWithValue carries a message the error view can show as-is. Rejection
-// means Kraken failed — a market with no prices.
+// Rejection means Kraken failed — a market with no prices. The message reaches
+// the error view as-is.
 export const fetchCoins = createAsyncThunk<
   Coin[],
   void,
@@ -69,8 +63,7 @@ export const fetchCoins = createAsyncThunk<
   }
 });
 
-// Its own thunk, dispatched alongside the prices rather than joined to them. A
-// failure here is silent by design: the market renders without its context.
+// Separate from the prices, and silent on failure: the market renders without it.
 export const fetchMarketContext = createAsyncThunk<CoinContext[], void>(
   'coins/fetchContext',
   () => fetchMarketContextFromApi(),
@@ -85,8 +78,8 @@ const coinsSlice = createSlice({
         const coin = state.items.find(
           (c) => c.symbol.toUpperCase() === tick.symbol,
         );
-        // Re-assigning the same number would still churn the row for a price
-        // that has not changed, and repeat trades at one level are common.
+        // Skip an unchanged price: repeat trades at one level are common, and
+        // re-assigning would churn the row for nothing.
         if (coin && coin.current_price !== tick.last) {
           coin.current_price = tick.last;
         }
@@ -120,8 +113,7 @@ const coinsSlice = createSlice({
         state.contextRequestId = action.meta.requestId;
       })
       .addCase(fetchMarketContext.fulfilled, (state, action) => {
-        // A slower earlier request finishing now would put its older market cap,
-        // volume and 24h change back over the newer ones.
+        // Drop a slow earlier request: its older figures must not land on newer.
         if (action.meta.requestId !== state.contextRequestId) return;
         state.context = Object.fromEntries(
           action.payload.map((entry) => [entry.id, entry]),
@@ -139,10 +131,8 @@ export const selectCoinsStatus = (s: RootState) => s.coins.status;
 export const selectCoinsError = (s: RootState) => s.coins.error;
 export const selectSocketStatus = (s: RootState) => s.coins.socket;
 
-// Refusals counted against the rows that exist. The socket subscribes from the
-// local registry, so it can refuse a symbol the REST seed never priced and no
-// row was ever built for — counting that as a shortfall reports it against a
-// total it was never part of.
+// Refusals counted against rendered rows only: the socket can refuse a symbol
+// that never got a row, and that is no shortfall against what is on screen.
 export const selectUnavailableOnScreen = (s: RootState) =>
   s.coins.items.filter((coin) =>
     s.coins.unavailable.includes(coin.symbol.toUpperCase()),
