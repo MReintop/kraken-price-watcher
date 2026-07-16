@@ -4,8 +4,8 @@ import { formatPrice } from './formatPrice';
 // Display order; the values double as the button labels.
 export const TIMEFRAMES = Object.values(Timeframe);
 
-// Folds a live price into the most recent candle. Immutable: untouched candles
-// keep their references, so only the last one re-renders.
+// Immutable: untouched candles keep their references, so only the last one
+// re-renders when a live price folds in.
 export function applyLivePrice(candles: Candle[], price?: number): Candle[] {
   if (price == null || candles.length === 0) return candles;
   const last = candles[candles.length - 1];
@@ -18,7 +18,6 @@ export function applyLivePrice(candles: Candle[], price?: number): Candle[] {
   return [...candles.slice(0, -1), updated];
 }
 
-// % change across a series: first open → last close.
 export function periodChangePct(candles: Candle[]): number | null {
   if (candles.length === 0) return null;
   const first = candles[0].o;
@@ -31,10 +30,8 @@ export function formatSignedPct(pct: number): string {
   return `${pct >= 0 ? '▲' : '▼'} ${pct.toFixed(2)}%`;
 }
 
-// What the chart is worth saying out loud. A screen reader gets nothing from an
-// SVG of rectangles, and reading thirty candles one by one would be worse than
-// silence — the shape a sighted user takes in at a glance is the range, the
-// direction and the extremes.
+// A screen reader gets nothing from an SVG of rectangles, and thirty candles read
+// one by one is worse than silence — so: range, direction, extremes.
 const PERIOD_LABEL: Record<Timeframe, string> = {
   [Timeframe.Day]: 'last 24 hours',
   [Timeframe.Month]: 'last month',
@@ -79,7 +76,7 @@ export function priceDomain(candles: Candle[]): PriceDomain {
   };
 }
 
-// Map a price to a y coordinate in a box of `height` (0 = top).
+// 0 = top of the box.
 export function priceToY(
   price: number,
   domain: PriceDomain,
@@ -89,7 +86,7 @@ export function priceToY(
   return height - ((price - domain.min) / range) * height;
 }
 
-// "Nice" round tick values covering [min, max], à la d3.
+// "Nice" round tick values, à la d3.
 function niceNum(range: number, round: boolean): number {
   const exp = Math.floor(Math.log10(range));
   const frac = range / Math.pow(10, exp);
@@ -112,7 +109,6 @@ export function niceTicks(min: number, max: number, count = 5): number[] {
   return ticks;
 }
 
-// At most `count` evenly-spaced indices across `n`, including first and last.
 export function evenlySpacedIndices(n: number, count: number): number[] {
   if (n <= 0 || count <= 0) return [];
   const k = Math.min(count, n);
@@ -174,8 +170,7 @@ export interface CandleLayout {
   up: boolean;
 }
 
-// Projects candles into an SVG box (0,0 top-left). The domain is overridable so
-// candles and gridlines can share one scale.
+// Domain is overridable so candles and gridlines share one scale.
 export function computeCandleLayout(
   candles: Candle[],
   size: { width: number; height: number },

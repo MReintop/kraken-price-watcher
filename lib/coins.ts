@@ -7,12 +7,9 @@ const COINGECKO_BASE =
   process.env.EXPO_PUBLIC_COINGECKO_BASE_URL ??
   'https://api.coingecko.com/api/v3';
 
-// The instrument registry: CoinGecko's id, the base symbol the socket
-// subscribes by, and Kraken's REST pair. Holding all three locally is what lets
-// the socket start without waiting to be told which symbols exist.
-//
-// JSON, not a TS const: the e2e stub is a plain Node script and reads this same
-// list, so a second copy there would drift silently.
+// The instrument registry, held locally so the socket can start without waiting
+// to be told which symbols exist. JSON not TS: the e2e stub is plain Node and
+// reads the same file, so a TS copy would drift.
 export const TRACKED_COINS: readonly {
   id: string;
   name: string;
@@ -37,13 +34,9 @@ const METADATA_URL = `${COINGECKO_BASE}/coins/markets?vs_currency=usd&ids=${TRAC
   (coin) => coin.id,
 ).join(',')}&price_change_percentage=24h`;
 
-// Fetched on its own, and never awaited by the prices: this call is retried, and
-// a rate limit with a long Retry-After would otherwise hold every Kraken price
-// off the screen for the length of CoinGecko's backoff.
-//
-// Mapped field by field rather than returned whole: the body is cast, not
-// validated, so it carries its own id, name and symbol no matter what the type
-// says, and identity belongs to the registry.
+// On its own, never awaited by the prices: a rate limit's long Retry-After would
+// otherwise hold every Kraken price off screen. Mapped field by field because the
+// body is cast, not validated — identity belongs to the registry.
 export async function fetchMarketContext(): Promise<CoinContext[]> {
   const response = await fetchWithRetry(METADATA_URL);
   if (!response.ok) {
