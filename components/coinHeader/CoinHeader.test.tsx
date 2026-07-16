@@ -24,7 +24,7 @@ describe('CoinHeader', () => {
     });
 
     // Act
-    render(<CoinHeader coin={coin} />);
+    render(<CoinHeader coin={coin} updating />);
 
     // Assert
     expect(screen.getByText('Bitcoin')).toBeTruthy();
@@ -38,7 +38,7 @@ describe('CoinHeader', () => {
     const coin = makeCoin({ current_price: 62888 });
 
     // Act
-    render(<CoinHeader coin={coin} />);
+    render(<CoinHeader coin={coin} updating />);
 
     // Assert
     expect(screen.getByText('$62,888')).toBeTruthy();
@@ -47,11 +47,11 @@ describe('CoinHeader', () => {
   it('shows the new price immediately, never a value between the two', () => {
     // Arrange
     const { rerender } = render(
-      <CoinHeader coin={makeCoin({ current_price: 62888 })} />,
+      <CoinHeader coin={makeCoin({ current_price: 62888 })} updating />,
     );
 
     // Act — the next trade lands
-    rerender(<CoinHeader coin={makeCoin({ current_price: 63500 })} />);
+    rerender(<CoinHeader coin={makeCoin({ current_price: 63500 })} updating />);
 
     // Assert — a tween would still be showing $62,888 here, then walk through
     // prices that were never traded on the way up

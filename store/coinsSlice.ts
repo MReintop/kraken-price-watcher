@@ -100,6 +100,12 @@ export const selectCoinsError = (s: RootState) => s.coins.error;
 export const selectSocketStatus = (s: RootState) => s.coins.socket;
 export const selectUnavailable = (s: RootState) => s.coins.unavailable;
 
+// Per-coin, so one refused symbol re-renders one row rather than the list.
+export const selectIsCoinUnavailable = (id: string) => (s: RootState) => {
+  const coin = s.coins.items.find((c) => c.id === id);
+  return coin ? s.coins.unavailable.includes(coin.symbol.toUpperCase()) : false;
+};
+
 // Use with `shallowEqual` — this builds a new array every call, so a reference
 // check re-renders the whole list on every tick.
 export const selectCoinIds = (s: RootState) => s.coins.items.map((c) => c.id);

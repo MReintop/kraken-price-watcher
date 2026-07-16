@@ -21,7 +21,11 @@ The price never changes source, so it never jumps. The division is enforced in `
 
 `socket` is a state, not a boolean: `connecting | live | stale | offline`.
 
-**`live` is the claim that has to be earned.** An open transport says nothing — Kraken answers a subscribe **once per symbol**, so the socket waits for every one before claiming live, and a symbol it refuses or never answers for lands in `unavailable` rather than sitting on screen as a price that quietly stopped moving.
+**`live` is the claim that has to be earned.** An open transport says nothing — Kraken answers a subscribe **once per symbol**, so the socket waits for every one before claiming live, and a symbol it refuses or never answers for lands in `unavailable`.
+
+`unavailable` is not bookkeeping: a refused symbol keeps its REST seed on screen, which looks exactly like a market that isn't moving. So the row says `Not updating` and the header counts the shortfall — `Degraded 7/8`, never a bare `Live`. `PricesScreen.test.tsx` drives a partial refusal through the store and asserts both, because the socket's own tests can only prove the action was dispatched, not that anything listens.
+
+**`live` still means "Kraken acknowledged, and something has arrived since"** — an acknowledgement alone is not enough to earn the word, but a heartbeat is. A server that acknowledges and then heartbeats forever without ever sending a ticker record would hold `live`. With eight liquid pairs that is theory rather than practice, and the watchdog's job is transport silence, not price freshness.
 
 **`stale` is the state a boolean cannot express**: connected, believed healthy, and silently frozen. Kraken heartbeats roughly every second, so ten seconds of silence is a dead connection rather than a quiet market — the socket says so and closes it, because sitting on a half-open socket while rendering "Live" is the one failure a price screen must never have.
 
@@ -45,17 +49,19 @@ The remaining cost is a `.find()` over eight coins per row. Normalising to buy t
 
 ## The invariant that fails silently
 
-`tickersApplied` matches on **upper-case base symbol** — `BTC`, not `btc` or `BTC/USD`. `lib/kraken.ts` upper-cases on the way in; the slice compares against `coin.symbol.toUpperCase()`.
+`tickersApplied` matches on **upper-case base symbol** — `BTC`, not `btc` or `BTC/USD`. `store/krakenSocket.ts` builds the upper-case pairs it subscribes by, accepts a frame only for a pair it asked for, and cuts `BTC/USD` down to `BTC` on the way into the buffer; the slice then compares against `coin.symbol.toUpperCase()`.
 
 Send a lower-case symbol and the `.find()` misses, the reducer does nothing, no error is thrown, and the price simply stops updating. There is no failure mode louder than "the number went still." If prices are frozen, check the case first.
 
-The badge is no longer part of the lie, at least: a symbol the socket isn't really receiving now shows up in `unavailable`, and a feed that has gone quiet says `stale` rather than `live`.
+The badge is no longer part of the lie: a symbol the socket isn't really receiving is named on its own row and counted in the header, and a feed that has gone quiet says `stale` rather than `live`.
 
 ## Why the socket starts in middleware, on `pending`
 
 `listenerMiddleware.ts` starts the ticker on `fetchCoins.**pending**` — when the app _asks_ for coins, not when CoinGecko _answers_ — then unsubscribes so a pull-to-refresh can't open a second connection.
 
-**The trigger is the point.** Starting on `fulfilled` made CoinGecko a hard prerequisite for Kraken: rate-limited or down, the app showed an error and never opened the socket, even though Kraken was healthy and Kraken is where every price comes from. It only reached for CoinGecko's response because it wanted the symbol set — but the symbols are local, in `lib/trackedCoins.json`. A CoinGecko failure now delays metadata and nothing else.
+**The trigger is the point.** Starting on `fulfilled` made CoinGecko a prerequisite for even _opening_ the socket: rate-limited or down, the app showed an error and never connected, even though Kraken was healthy and Kraken is where every price comes from. It only reached for CoinGecko's response because it wanted the symbol set — but the symbols are local, in `lib/trackedCoins.json`.
+
+**This does not yet make the app survive a CoinGecko outage, and the socket starting early is not the same as prices being visible.** `fetchCoins()` still joins both upstreams with `Promise.all`, so a CoinGecko rejection rejects the thunk and `items` stays empty — and `tickersApplied` looks its ticks up _in_ `items`, so every Kraken tick arrives, finds no row, and is dropped. The screen shows an error while a healthy feed talks to nobody. Fixing it means splitting instrument identity from market context so a row can render on the local registry plus a Kraken price alone.
 
 Middleware rather than a component effect, because an effect ties the connection's lifetime to a mount and reconnects on every remount. The middleware sees the app start without being a view.
 

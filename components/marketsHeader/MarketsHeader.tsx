@@ -5,13 +5,19 @@ import type { SocketStatus } from '../../store/coinsSlice';
 
 interface MarketsHeaderProps {
   status: SocketStatus;
+  tracked: number;
+  unavailable: number;
 }
 
-export default function MarketsHeader({ status }: MarketsHeaderProps) {
+export default function MarketsHeader({
+  status,
+  tracked,
+  unavailable,
+}: MarketsHeaderProps) {
   return (
     <View style={styles.header}>
       <Text style={styles.title}>Markets</Text>
-      <LiveBadge status={status} />
+      <LiveBadge status={status} tracked={tracked} unavailable={unavailable} />
     </View>
   );
 }

@@ -2,7 +2,9 @@
 
 ## Arrange–Act–Assert
 
-Every test — unit, component **and Maestro flow** — is written as **Arrange–Act–Assert**, with `// Arrange`, `// Act`, `// Assert` comments marking the three sections.
+Every Jest test — unit and component — is written as **Arrange–Act–Assert**, with `// Arrange`, `// Act`, `// Assert` comments marking the three sections.
+
+The Maestro flows are not. They are YAML read top to bottom, where a step is its own Act and the `assertVisible` after it is its own Assert; the markers would be noise. They carry a comment saying what the flow is for instead.
 
 - Collapse to a single `// Arrange / Act` when setup and the call under test are one line.
 - If a section is empty, say why rather than dropping the marker — `// Arrange (fetch stubbed above)`.
@@ -144,4 +146,4 @@ npm run test:e2e:stub # maestro against the stub
 npm run test:e2e      # maestro against the real Kraken
 ```
 
-`pre-commit` runs prettier + eslint on staged files. The Maestro flows run in CI on a pull request, not on push — they need an emulator.
+`pre-commit` runs prettier + eslint on staged files **and the full Jest suite** — so a commit costs the seconds `npm test` costs, and a red test blocks it. The Maestro flows run in CI on a pull request, not on push — they need an emulator.

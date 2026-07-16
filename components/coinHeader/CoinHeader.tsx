@@ -7,10 +7,11 @@ import { theme, changeColors } from '../../theme';
 
 interface CoinHeaderProps {
   coin: Coin;
+  updating: boolean;
 }
 
-export default function CoinHeader({ coin }: CoinHeaderProps) {
-  const details = getCoinDetails(coin);
+export default function CoinHeader({ coin, updating }: CoinHeaderProps) {
+  const details = getCoinDetails(coin, updating);
   const change = changeColors(details.isUp);
 
   return (
@@ -37,6 +38,8 @@ export default function CoinHeader({ coin }: CoinHeaderProps) {
           {details.changeLabel} (24h)
         </Text>
       </View>
+
+      {!updating && <Text style={styles.frozen}>Not updating</Text>}
     </View>
   );
 }
@@ -69,4 +72,9 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.pill,
   },
   change: { fontSize: theme.font.small, fontWeight: '700' },
+  frozen: {
+    color: theme.color.down,
+    fontSize: theme.font.small,
+    fontWeight: '600',
+  },
 });
