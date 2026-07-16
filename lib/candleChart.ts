@@ -41,6 +41,7 @@ const PERIOD_LABEL: Record<Timeframe, string> = {
 export function describeCandles(
   candles: Candle[],
   timeframe: Timeframe,
+  decimals: number,
 ): string {
   const period = PERIOD_LABEL[timeframe];
   if (candles.length === 0) return `Price chart, ${period}. No data.`;
@@ -58,8 +59,8 @@ export function describeCandles(
 
   return (
     `Price chart, ${period}.` +
-    ` Opened at ${formatPrice(open)},${direction} now ${formatPrice(close)}.` +
-    ` High ${formatPrice(high)}, low ${formatPrice(low)}.`
+    ` Opened at ${formatPrice(open, decimals)},${direction} now ${formatPrice(close, decimals)}.` +
+    ` High ${formatPrice(high, decimals)}, low ${formatPrice(low, decimals)}.`
   );
 }
 

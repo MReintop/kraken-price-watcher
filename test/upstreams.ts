@@ -11,6 +11,7 @@ export const makeCoin = (overrides: Partial<Coin> = {}): Coin => ({
   symbol: 'btc',
   image: 'x',
   current_price: 62888,
+  price_decimals: 1,
   price_change_percentage_24h: -1.45,
   market_cap: 0,
   total_volume: 0,
@@ -48,6 +49,16 @@ const metadataFor = (coins: Coin[]): Metadata[] =>
       price_change_percentage_24h,
     }),
   );
+
+const pairDecimalsFor = (coins: Coin[]) => ({
+  error: [],
+  result: Object.fromEntries(
+    coins.map((coin) => [
+      krakenPairFor(coin.id)!,
+      { altname: krakenPairFor(coin.id)!, pair_decimals: coin.price_decimals },
+    ]),
+  ),
+});
 
 // Kraken sends prices as strings and reports failure as HTTP 200 + error[].
 const tickerFor = (coins: Coin[]) => ({
@@ -127,6 +138,9 @@ export const stubUpstreams = ({
         };
       }
       return json(metadataFor(coins));
+    }
+    if (url.includes('/AssetPairs')) {
+      return json(pairDecimalsFor(coins));
     }
     if (url.includes('/Ticker')) {
       if (tickerStatus) {

@@ -34,9 +34,9 @@ export default function CoinStats({ coin }: CoinStatsProps) {
 
   return (
     <View style={styles.card}>
-      <Stat label="Market cap" value={formatPrice(coin.market_cap)} />
+      <Stat label="Market cap" value={formatPrice(coin.market_cap, 0)} />
       <View style={styles.divider} />
-      <Stat label="24h volume" value={formatPrice(coin.total_volume)} />
+      <Stat label="24h volume" value={formatPrice(coin.total_volume, 0)} />
     </View>
   );
 }

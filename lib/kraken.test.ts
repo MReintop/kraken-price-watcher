@@ -1,4 +1,8 @@
-import { fetchKrakenLastPrices, fetchKrakenCandles } from './kraken';
+import {
+  fetchKrakenLastPrices,
+  fetchKrakenCandles,
+  fetchKrakenPairDecimals,
+} from './kraken';
 import { Timeframe } from '../types';
 
 const envelope = (result: unknown, error: string[] = []) => ({
@@ -20,6 +24,49 @@ const ohlcRow = (time: number, close: string) => [
 ];
 
 afterEach(() => jest.resetAllMocks());
+
+describe('fetchKrakenPairDecimals', () => {
+  it('reads the price precision each market publishes', async () => {
+    // Arrange — Kraken quotes BTC/USD to a tenth of a dollar
+    globalThis.fetch = jest.fn().mockResolvedValue(
+      envelope({
+        XXBTZUSD: { altname: 'XBTUSD', pair_decimals: 1 },
+        SOLUSD: { altname: 'SOLUSD', pair_decimals: 2 },
+      }),
+    ) as unknown as typeof fetch;
+
+    // Act
+    const decimals = await fetchKrakenPairDecimals(['XXBTZUSD', 'SOLUSD']);
+
+    // Assert
+    expect(decimals.get('XXBTZUSD')).toBe(1);
+    expect(decimals.get('SOLUSD')).toBe(2);
+  });
+
+  it.each([
+    ['missing', undefined],
+    ['a string', '1'],
+    ['fractional', 1.5],
+    ['negative', -1],
+    // Intl throws a RangeError past 20, which would crash the render.
+    ['absurd', 99],
+  ])(
+    'rejects a %s precision rather than formatting by guess',
+    async (_l, d) => {
+      // Arrange
+      globalThis.fetch = jest
+        .fn()
+        .mockResolvedValue(
+          envelope({ XXBTZUSD: { pair_decimals: d } }),
+        ) as unknown as typeof fetch;
+
+      // Act / Assert
+      await expect(fetchKrakenPairDecimals(['XXBTZUSD'])).rejects.toThrow(
+        'expected a decimal count',
+      );
+    },
+  );
+});
 
 describe('fetchKrakenLastPrices', () => {
   it('reads the last trade price for each pair', async () => {

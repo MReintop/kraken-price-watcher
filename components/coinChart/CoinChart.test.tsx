@@ -40,7 +40,7 @@ describe('CoinChart', () => {
     });
 
     // Act
-    render(<CoinChart coinId="bitcoin" livePrice={100} />);
+    render(<CoinChart priceDecimals={2} coinId="bitcoin" livePrice={100} />);
 
     // Assert
     expect(screen.getByRole('progressbar')).toBeTruthy();
@@ -54,7 +54,7 @@ describe('CoinChart', () => {
     });
 
     // Act
-    render(<CoinChart coinId="bitcoin" livePrice={100} />);
+    render(<CoinChart priceDecimals={2} coinId="bitcoin" livePrice={100} />);
 
     // Assert
     expect(screen.getByText(/load chart/)).toBeTruthy();
@@ -71,7 +71,7 @@ describe('CoinChart', () => {
 
     // Act — live price 120 vs Month open 100 → +20%
     const { container } = render(
-      <CoinChart coinId="bitcoin" livePrice={120} />,
+      <CoinChart priceDecimals={2} coinId="bitcoin" livePrice={120} />,
     );
 
     // Assert
@@ -89,7 +89,7 @@ describe('CoinChart', () => {
       candles: byTimeframe[timeframe],
       status: FetchStatus.Succeeded,
     }));
-    render(<CoinChart coinId="bitcoin" livePrice={120} />);
+    render(<CoinChart priceDecimals={2} coinId="bitcoin" livePrice={120} />);
 
     // Act — Year open 50 vs live price 120 → +140%
     fireEvent.click(screen.getByText('1Y'));

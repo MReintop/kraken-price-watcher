@@ -20,15 +20,17 @@ const TICK_MS = Number(process.env.STUB_TICK_MS ?? 1000);
 
 // Fixture prices only. Identity comes from TRACKED, so a coin renamed there
 // cannot disagree with itself here.
+// `decimals` is the pair's price precision, as /AssetPairs reports it — BTC/USD
+// really trades to a tenth of a dollar, so 62888 renders "$62,888.0".
 const FIXTURES = {
-  bitcoin: { price: 62888, change24h: -1.45 },
-  ethereum: { price: 1883.21, change24h: 2.5 },
-  solana: { price: 142.5, change24h: 5.1 },
-  cardano: { price: 0.38, change24h: -0.75 },
-  ripple: { price: 0.52, change24h: 1.2 },
-  dogecoin: { price: 0.12, change24h: -3.4 },
-  polkadot: { price: 4.15, change24h: 0.9 },
-  chainlink: { price: 11.3, change24h: 4.2 },
+  bitcoin: { price: 62888, change24h: -1.45, decimals: 1 },
+  ethereum: { price: 1883.21, change24h: 2.5, decimals: 2 },
+  solana: { price: 142.5, change24h: 5.1, decimals: 2 },
+  cardano: { price: 0.38, change24h: -0.75, decimals: 6 },
+  ripple: { price: 0.52, change24h: 1.2, decimals: 5 },
+  dogecoin: { price: 0.12, change24h: -3.4, decimals: 7 },
+  polkadot: { price: 4.15, change24h: 0.9, decimals: 4 },
+  chainlink: { price: 11.3, change24h: 4.2, decimals: 5 },
 };
 
 const COINS = TRACKED.map((coin) => ({ ...coin, ...FIXTURES[coin.id] }));
@@ -101,6 +103,21 @@ export function createStubServer() {
     const krakenError = (message) => json({ error: [message], result: {} });
 
     if (url.pathname === '/coingecko/coins/markets') return json(markets());
+
+    if (url.pathname === '/kraken/AssetPairs') {
+      const pair = url.searchParams.get('pair');
+      if (!pair) return krakenError('EGeneral:Invalid arguments');
+      const wanted = new Set(pair.split(','));
+      return json({
+        error: [],
+        result: Object.fromEntries(
+          COINS.filter((coin) => wanted.has(coin.pair)).map((coin) => [
+            coin.pair,
+            { altname: coin.pair, pair_decimals: coin.decimals },
+          ]),
+        ),
+      });
+    }
 
     if (url.pathname === '/kraken/Ticker') {
       const pair = url.searchParams.get('pair');

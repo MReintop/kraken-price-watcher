@@ -35,6 +35,7 @@ describe('CandlestickChart', () => {
     // Act
     const { container } = render(
       <CandlestickChart
+        priceDecimals={2}
         candles={candles}
         width={300}
         height={200}
@@ -57,6 +58,7 @@ describe('CandlestickChart', () => {
     // Act
     const { container } = render(
       <CandlestickChart
+        priceDecimals={2}
         candles={candles}
         width={300}
         height={200}
@@ -81,6 +83,7 @@ describe('CandlestickChart', () => {
     // Act
     render(
       <CandlestickChart
+        priceDecimals={2}
         candles={candles}
         width={300}
         height={200}

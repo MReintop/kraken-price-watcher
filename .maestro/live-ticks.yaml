@@ -16,8 +16,9 @@ tags:
 
 - assertVisible: 'Bitcoin'
 
-# Seeded from Kraken's Ticker before the socket connects.
-- assertVisible: '$62,888'
+# Seeded from Kraken's Ticker before the socket connects. The tenths digit is
+# BTC/USD's real precision (pair_decimals=1), so it must reach the screen.
+- assertVisible: '$62,888.0'
 
 # Once subscribed, the badge flips.
 - assertVisible: 'Live'
@@ -25,5 +26,5 @@ tags:
 # The stub walks prices upward by a fixed step per tick, so the seeded value must
 # stop being current on its own — no interaction.
 - extendedWaitUntil:
-    notVisible: '$62,888'
+    notVisible: '$62,888.0'
     timeout: 20000
