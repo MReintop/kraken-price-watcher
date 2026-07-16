@@ -209,6 +209,42 @@ describe('PricesScreen (integration with a real store)', () => {
     expect(await screen.findByText('▲ 2.50%')).toBeTruthy();
   });
 
+  it('ignores a context response a newer request has already replaced', async () => {
+    // Arrange — a pull-to-refresh can overtake the request from mount. The first
+    // is slow and carries the older numbers; the second answers immediately.
+    const contextBody = (pct: number, cap: number) => [
+      {
+        id: 'bitcoin',
+        image: 'x',
+        market_cap: cap,
+        total_volume: 1,
+        price_change_percentage_24h: pct,
+      },
+    ];
+    let call = 0;
+    globalThis.fetch = jest.fn(async () => {
+      const stale = call++ === 0;
+      if (stale) await new Promise((r) => setTimeout(r, 60));
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        json: async () =>
+          stale ? contextBody(1.11, 111) : contextBody(9.99, 999),
+      };
+    }) as unknown as typeof fetch;
+
+    // Act — both in flight; the newer one lands first, the older one lands last
+    const store = setupStore();
+    await Promise.all([
+      store.dispatch(fetchMarketContext()),
+      store.dispatch(fetchMarketContext()),
+    ]);
+
+    // Assert — arriving last is not the same as being newest
+    expect(store.getState().coins.context.bitcoin.market_cap).toBe(999);
+  });
+
   it('shows a live tick without refetching', async () => {
     // Arrange
     stubUpstreams({ coins: [makeCoin({ current_price: 62888 })] });

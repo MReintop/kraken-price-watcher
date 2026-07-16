@@ -22,6 +22,8 @@ The pull-to-refresh spinner follows the prices only, for the same reason — awa
 
 **Context is kept in the slice, keyed by id, because the two answer in either order.** Whichever lands second does the merge: `fetchCoins.fulfilled` decorates from context already held, and `fetchMarketContext.fulfilled` decorates rows already rendered. Context arriving before the prices it describes would otherwise have nowhere to go. `PricesScreen.test.tsx` covers both orders, and removing either merge fails exactly one of them.
 
+**Context fulfilments are matched against `contextRequestId`, because arriving last is not the same as being newest.** Mount and pull-to-refresh overlap, and a slow first request answering after a fast second one would put its older market cap, volume and 24h change back over the newer ones. Only the newest request in flight may write the cache. `fetchCoins` has no such guard yet — the same overlap can replace a newer price list with an older one, and that fix belongs with preserving live ticks across a refresh rather than here.
+
 **Whether context is missing is read off the coin, not off a flag.** There is no `contextAvailable`: with eight fixed instruments, "CoinGecko is down" and "this coin has no context" coincide, so a flag would be a second source of truth for what `market_cap == null` already says — and one the rendered card could drift from.
 
 **`lib/coins.ts` lists CoinGecko's fields one by one instead of spreading the response.** The body is cast, not validated, so it arrives carrying its own `id`, `name` and `symbol` no matter what the type says. A spread put those over the registry's, and identity silently changed source depending on whether CoinGecko answered — the same bug the price split exists to prevent, one field over.

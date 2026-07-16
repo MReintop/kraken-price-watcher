@@ -24,6 +24,9 @@ interface CoinsState {
   // context can arrive before the prices it decorates and would have nowhere to
   // go. Read whenever either side lands.
   context: Record<string, CoinContext>;
+  // The request whose answer is still wanted. Context requests overlap — mount
+  // and pull-to-refresh — and answering last is not the same as being newest.
+  contextRequestId?: string;
 }
 
 const initialState: CoinsState = {
@@ -113,7 +116,13 @@ const coinsSlice = createSlice({
         state.status = FetchStatus.Failed;
         state.error = action.payload ?? 'Failed to load prices';
       })
+      .addCase(fetchMarketContext.pending, (state, action) => {
+        state.contextRequestId = action.meta.requestId;
+      })
       .addCase(fetchMarketContext.fulfilled, (state, action) => {
+        // A slower earlier request finishing now would put its older market cap,
+        // volume and 24h change back over the newer ones.
+        if (action.meta.requestId !== state.contextRequestId) return;
         state.context = Object.fromEntries(
           action.payload.map((entry) => [entry.id, entry]),
         );
