@@ -54,8 +54,8 @@ const tickerFor = (coins: Coin[]) => ({
   error: [],
   result: Object.fromEntries(
     coins.map((coin) => {
-      const open =
-        coin.current_price / (1 + coin.price_change_percentage_24h / 100);
+      const change = coin.price_change_percentage_24h ?? 0;
+      const open = coin.current_price / (1 + change / 100);
       return [
         krakenPairFor(coin.id)!,
         { c: [String(coin.current_price), '1.0'], o: String(open) },
@@ -91,14 +91,17 @@ const json = (body: unknown) => ({
 
 export interface StubOptions {
   coins?: Coin[];
-  /** Fail the CoinGecko identity call with this status. */
+  /** Fail the CoinGecko market-context call with this status. */
   metadataStatus?: number;
+  /** Fail the Kraken REST seed with this status. */
+  tickerStatus?: number;
 }
 
 // Installs a fetch that answers by URL, since the app now calls two upstreams.
 export const stubUpstreams = ({
   coins = [makeCoin()],
   metadataStatus,
+  tickerStatus,
 }: StubOptions = {}) => {
   const fetchMock = jest.fn(async (url: string) => {
     if (url.includes('/coins/markets')) {
@@ -107,7 +110,12 @@ export const stubUpstreams = ({
       }
       return json(metadataFor(coins));
     }
-    if (url.includes('/Ticker')) return json(tickerFor(coins));
+    if (url.includes('/Ticker')) {
+      if (tickerStatus) {
+        return { ok: false, status: tickerStatus, headers: noHeaders };
+      }
+      return json(tickerFor(coins));
+    }
     if (url.includes('/OHLC')) {
       const pair = new URL(url, 'http://x').searchParams.get('pair')!;
       return json(ohlcFor(pair));

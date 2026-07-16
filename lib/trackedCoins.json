@@ -1,10 +1,15 @@
 [
-  { "id": "bitcoin", "symbol": "btc", "pair": "XXBTZUSD" },
-  { "id": "ethereum", "symbol": "eth", "pair": "XETHZUSD" },
-  { "id": "solana", "symbol": "sol", "pair": "SOLUSD" },
-  { "id": "cardano", "symbol": "ada", "pair": "ADAUSD" },
-  { "id": "ripple", "symbol": "xrp", "pair": "XXRPZUSD" },
-  { "id": "dogecoin", "symbol": "doge", "pair": "XDGUSD" },
-  { "id": "polkadot", "symbol": "dot", "pair": "DOTUSD" },
-  { "id": "chainlink", "symbol": "link", "pair": "LINKUSD" }
+  { "id": "bitcoin", "name": "Bitcoin", "symbol": "btc", "pair": "XXBTZUSD" },
+  { "id": "ethereum", "name": "Ethereum", "symbol": "eth", "pair": "XETHZUSD" },
+  { "id": "solana", "name": "Solana", "symbol": "sol", "pair": "SOLUSD" },
+  { "id": "cardano", "name": "Cardano", "symbol": "ada", "pair": "ADAUSD" },
+  { "id": "ripple", "name": "XRP", "symbol": "xrp", "pair": "XXRPZUSD" },
+  { "id": "dogecoin", "name": "Dogecoin", "symbol": "doge", "pair": "XDGUSD" },
+  { "id": "polkadot", "name": "Polkadot", "symbol": "dot", "pair": "DOTUSD" },
+  {
+    "id": "chainlink",
+    "name": "Chainlink",
+    "symbol": "link",
+    "pair": "LINKUSD"
+  }
 ]

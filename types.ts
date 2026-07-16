@@ -1,12 +1,15 @@
+// Identity comes from the local registry and the price from Kraken, so both are
+// always here. The rest is CoinGecko's market context: optional because it is a
+// second upstream, and a coin with no context is still a coin with a price.
 export type Coin = {
   id: string;
   name: string;
   symbol: string;
-  image: string;
   current_price: number;
-  price_change_percentage_24h: number;
-  market_cap: number;
-  total_volume: number;
+  image?: string;
+  price_change_percentage_24h?: number;
+  market_cap?: number;
+  total_volume?: number;
 };
 
 // Navigation route names — one source of truth instead of magic strings.

@@ -36,7 +36,9 @@ Never `toLocaleString()` on a price directly. The locale is pinned there, and th
 
 ## Coins come from `lib/trackedCoins.json`
 
-The id→pair mapping lives in one file, read by `lib/coins.ts` and by the e2e stub. Adding a coin means editing that file and nothing else.
+The id→name→symbol→pair mapping lives in one file, read by `lib/coins.ts` and by the e2e stub. Adding a coin means editing that file and nothing else.
+
+It carries the **display name** as well as the pair, and that is not decoration: identity being local is what lets a row render when CoinGecko is down. A name sourced from the network would put the row back behind the outage it survives today.
 
 ## Comments: last resort, local, short
 

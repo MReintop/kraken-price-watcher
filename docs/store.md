@@ -4,12 +4,17 @@ One slice, `coins`, holding the eight tracked coins plus the health of the feed.
 
 ## Where the price comes from
 
-Two upstreams, split by what each is good for:
+Three sources, split by what each is good for — and, more importantly, by what the app can survive losing:
 
-- **CoinGecko** — identity and market context: name, symbol, image, market cap, 24h volume, and **the 24h change**.
+- **`lib/trackedCoins.json`** — identity: id, display name, symbol, Kraken pair. Local, so it cannot fail.
 - **Kraken** — every price: the REST `/Ticker` seed, the socket ticks, and the candles.
+- **CoinGecko** — market context: image, market cap, 24h volume, and **the 24h change**.
 
 The price never changes source, so it never jumps. The division is enforced in `lib/coins.ts`.
+
+**Identity being local is what makes the other two independent.** A row needs a name, a symbol and a price to be worth rendering; two of those three are on disk. So Kraken decides whether there is a market to show, and CoinGecko only decorates it — which is why `fetchCoins()` joins them with `Promise.allSettled` and not `Promise.all`. `Promise.all` gave an artwork API a veto over every price on screen.
+
+A Kraken failure rejects the thunk: no prices, no market, error view. A CoinGecko failure resolves with `context: false` — prices render, the 24h pill is omitted rather than shown as a flat `0.00%`, and the stats card says `Market context unavailable`. `PricesScreen.test.tsx` fails CoinGecko while Kraken stays healthy and asserts the prices are still there and still ticking.
 
 **The 24h change is CoinGecko's on purpose**, and two Kraken fields are deliberately left unread to keep it that way.
 
@@ -68,7 +73,7 @@ The badge is no longer part of the lie: a symbol the socket isn't really receivi
 
 **The trigger is the point.** Starting on `fulfilled` made CoinGecko a prerequisite for even _opening_ the socket: rate-limited or down, the app showed an error and never connected, even though Kraken was healthy and Kraken is where every price comes from. It only reached for CoinGecko's response because it wanted the symbol set — but the symbols are local, in `lib/trackedCoins.json`.
 
-**This does not yet make the app survive a CoinGecko outage, and the socket starting early is not the same as prices being visible.** `fetchCoins()` still joins both upstreams with `Promise.all`, so a CoinGecko rejection rejects the thunk and `items` stays empty — and `tickersApplied` looks its ticks up _in_ `items`, so every Kraken tick arrives, finds no row, and is dropped. The screen shows an error while a healthy feed talks to nobody. Fixing it means splitting instrument identity from market context so a row can render on the local registry plus a Kraken price alone.
+**Starting the socket early only pays off because the rows no longer wait for CoinGecko.** `tickersApplied` resolves each tick against `items`, so an early socket feeding an empty `items` would drop every tick it received and change nothing on screen. The trigger and the `Promise.allSettled` split above are one fix in two halves; either alone is theatre.
 
 Middleware rather than a component effect, because an effect ties the connection's lifetime to a mount and reconnects on every remount. The middleware sees the app start without being a view.
 

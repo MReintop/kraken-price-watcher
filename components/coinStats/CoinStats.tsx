@@ -22,6 +22,16 @@ interface CoinStatsProps {
 }
 
 export default function CoinStats({ coin }: CoinStatsProps) {
+  // Both figures are CoinGecko's, so they arrive together or not at all. Saying
+  // the market cap is unavailable beats printing a confident $0.
+  if (coin.market_cap == null || coin.total_volume == null) {
+    return (
+      <View style={styles.card}>
+        <Text style={styles.unavailable}>Market context unavailable</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.card}>
       <Stat label="Market cap" value={formatPrice(coin.market_cap)} />
@@ -45,6 +55,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   label: { color: theme.color.muted, fontSize: theme.font.small },
+  unavailable: {
+    color: theme.color.muted,
+    fontSize: theme.font.small,
+    textAlign: 'center',
+  },
   value: {
     color: theme.color.text,
     fontSize: theme.font.small,

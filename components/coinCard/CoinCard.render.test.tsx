@@ -24,6 +24,7 @@ const renderTwoCards = () => {
         status: FetchStatus.Succeeded,
         socket: 'live' as const,
         unavailable: [],
+        context: true,
       },
     },
   });

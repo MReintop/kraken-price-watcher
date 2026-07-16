@@ -15,6 +15,7 @@ const COINGECKO_BASE =
 // list, so a second copy there would drift silently.
 export const TRACKED_COINS: readonly {
   id: string;
+  name: string;
   symbol: string;
   pair: string;
 }[] = trackedCoins;
@@ -24,16 +25,13 @@ export const krakenPairFor = (id: string) =>
 
 // The 24h change comes from here too: Kraken's REST ticker has no true 24h
 // reference, only today's open, so seeding from it flips sign on the first tick.
-type CoinMetadata = Pick<
-  Coin,
-  | 'id'
-  | 'name'
-  | 'symbol'
-  | 'image'
-  | 'market_cap'
-  | 'total_volume'
-  | 'price_change_percentage_24h'
->;
+interface CoinMetadata {
+  id: string;
+  image: string;
+  market_cap: number;
+  total_volume: number;
+  price_change_percentage_24h: number;
+}
 
 const METADATA_URL = `${COINGECKO_BASE}/coins/markets?vs_currency=usd&ids=${TRACKED_COINS.map(
   (coin) => coin.id,
@@ -47,18 +45,36 @@ async function fetchCoinMetadata(): Promise<CoinMetadata[]> {
   return response.json();
 }
 
-// The price comes from Kraken — the same source the socket and the candles use,
-// so the number never jumps sources. Everything else comes from CoinGecko.
+// Kraken decides whether there is a market to show; CoinGecko only decorates it.
+// Joining them with `Promise.all` would give an artwork API a veto over every
+// price on screen.
 export async function fetchCoins(): Promise<Coin[]> {
-  const [metadata, lastPrices] = await Promise.all([
+  const [metadata, lastPrices] = await Promise.allSettled([
     fetchCoinMetadata(),
     fetchKrakenLastPrices(TRACKED_COINS.map((coin) => coin.pair)),
   ]);
 
-  return TRACKED_COINS.flatMap(({ id, pair }) => {
-    const coin = metadata.find((entry) => entry.id === id);
-    const last = lastPrices.get(pair);
-    if (!coin || last == null) return [];
-    return [{ ...coin, current_price: last }];
+  if (lastPrices.status === 'rejected') throw lastPrices.reason;
+  const enrichment = metadata.status === 'fulfilled' ? metadata.value : [];
+
+  return TRACKED_COINS.flatMap(({ id, name, symbol, pair }) => {
+    const last = lastPrices.value.get(pair);
+    if (last == null) return [];
+    // Listed field by field rather than spread: the response is cast, not
+    // validated, so it carries its own id/name/symbol whatever the type says,
+    // and a spread would let identity change source with CoinGecko's health.
+    const context = enrichment.find((entry) => entry.id === id);
+    return [
+      {
+        id,
+        name,
+        symbol,
+        current_price: last,
+        image: context?.image,
+        market_cap: context?.market_cap,
+        total_volume: context?.total_volume,
+        price_change_percentage_24h: context?.price_change_percentage_24h,
+      },
+    ];
   });
 }

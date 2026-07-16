@@ -56,6 +56,20 @@ describe('PricesScreen (integration with a real store)', () => {
     expect(await screen.findByText(/64,788/)).toBeTruthy();
   });
 
+  it('names the coin from the registry, not from CoinGecko', async () => {
+    // Arrange — CoinGecko is answering, and calling it something else
+    stubUpstreams({
+      coins: [makeCoin({ name: 'Bitcoin (renamed upstream)' })],
+    });
+
+    // Act
+    renderScreen();
+
+    // Assert — identity must not change source with CoinGecko's health, for the
+    // same reason the price does not
+    expect(await screen.findByText('Bitcoin')).toBeTruthy();
+  });
+
   it('navigates to the detail screen with the coin when a card is pressed', async () => {
     // Arrange
     stubUpstreams();
@@ -71,16 +85,79 @@ describe('PricesScreen (integration with a real store)', () => {
     });
   });
 
-  it('shows an error state when the identity request fails', async () => {
+  it('shows an error state when Kraken cannot be reached', async () => {
     // Arrange — 404, not 503: a 5xx is retried with backoff, so it would not
     // surface for several seconds. The retry itself is covered in lib/http.
-    stubUpstreams({ metadataStatus: 404 });
+    stubUpstreams({ tickerStatus: 404 });
 
     // Act
     renderScreen();
 
-    // Assert
+    // Assert — no Kraken means no prices, which is the one upstream that is
+    // the product rather than decoration around it
     expect(await screen.findByText(/HTTP 404/)).toBeTruthy();
+  });
+
+  // Kraken owns every price; CoinGecko owns the figures beside them. An outage
+  // in the second must not take the first off screen.
+  describe('when CoinGecko is down but Kraken is healthy', () => {
+    const renderWithoutContext = () => {
+      stubUpstreams({
+        coins: [makeCoin({ current_price: 64788 })],
+        metadataStatus: 404,
+      });
+      return renderScreen();
+    };
+
+    it('still shows the Kraken price', async () => {
+      // Arrange / Act
+      renderWithoutContext();
+
+      // Assert
+      expect(await screen.findByText(/64,788/)).toBeTruthy();
+    });
+
+    it('still names the coin, from the local registry', async () => {
+      // Arrange / Act
+      renderWithoutContext();
+
+      // Assert — identity is local, so it does not depend on either upstream
+      expect(await screen.findByText('Bitcoin')).toBeTruthy();
+      expect(screen.getByText('BTC')).toBeTruthy();
+    });
+
+    it('applies live ticks to a coin CoinGecko never described', async () => {
+      // Arrange
+      const { store } = renderWithoutContext();
+      await screen.findByText('Bitcoin');
+
+      // Act
+      act(() => {
+        store.dispatch(tickersApplied([{ symbol: 'BTC', last: 70000 }]));
+      });
+
+      // Assert — the row exists to receive the tick, which is the whole point
+      // of not gating it on metadata
+      expect(await screen.findByText(/70,000/)).toBeTruthy();
+    });
+
+    it('omits the 24h change rather than inventing a flat one', async () => {
+      // Arrange / Act
+      renderWithoutContext();
+      await screen.findByText('Bitcoin');
+
+      // Assert — "▲ 0.00%" would be a number nobody reported
+      expect(screen.queryByText(/%/)).toBeNull();
+    });
+
+    it('does not show the error screen', async () => {
+      // Arrange / Act
+      renderWithoutContext();
+      await screen.findByText('Bitcoin');
+
+      // Assert
+      expect(screen.queryByText(/HTTP 404/)).toBeNull();
+    });
   });
 
   it('shows a live tick without refetching', async () => {

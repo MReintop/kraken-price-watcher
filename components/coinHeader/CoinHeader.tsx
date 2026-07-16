@@ -12,12 +12,17 @@ interface CoinHeaderProps {
 
 export default function CoinHeader({ coin, updating }: CoinHeaderProps) {
   const details = getCoinDetails(coin, updating);
-  const change = changeColors(details.isUp);
+  const change = details.change;
+  const changeColor = change ? changeColors(change.isUp) : undefined;
 
   return (
     <View style={styles.wrap}>
       <View style={styles.head}>
-        <Image source={{ uri: coin.image }} style={styles.icon} />
+        {coin.image ? (
+          <Image source={{ uri: coin.image }} style={styles.icon} />
+        ) : (
+          <View style={[styles.icon, styles.iconPlaceholder]} />
+        )}
         <Text style={styles.name}>{details.name}</Text>
         <Text style={styles.symbol}>{coin.symbol.toUpperCase()}</Text>
       </View>
@@ -33,11 +38,13 @@ export default function CoinHeader({ coin, updating }: CoinHeaderProps) {
         </View>
       </View>
 
-      <View style={[styles.pill, { backgroundColor: change.tint }]}>
-        <Text style={[styles.change, { color: change.fg }]}>
-          {details.changeLabel} (24h)
-        </Text>
-      </View>
+      {change && changeColor && (
+        <View style={[styles.pill, { backgroundColor: changeColor.tint }]}>
+          <Text style={[styles.change, { color: changeColor.fg }]}>
+            {change.label} (24h)
+          </Text>
+        </View>
+      )}
 
       {!updating && <Text style={styles.frozen}>Not updating</Text>}
     </View>
@@ -52,6 +59,7 @@ const styles = StyleSheet.create({
   },
   head: { alignItems: 'center', gap: theme.space.xs },
   icon: { width: 72, height: 72, borderRadius: theme.radius.pill },
+  iconPlaceholder: { backgroundColor: theme.color.surfaceAlt },
   name: { color: theme.color.text, fontSize: theme.font.h1, fontWeight: '800' },
   symbol: {
     color: theme.color.muted,

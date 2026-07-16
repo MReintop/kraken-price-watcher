@@ -13,8 +13,8 @@ interface CoinsState {
   status: FetchStatus;
   error?: string;
   socket: SocketStatus;
-  // Symbols Kraken refused, or never answered for. Their prices are whatever
-  // CoinGecko last said and will not move.
+  // Symbols Kraken refused, or never answered for. Their prices are whatever the
+  // REST seed last said and will not move.
   unavailable: string[];
 }
 
@@ -33,7 +33,8 @@ export interface KrakenTick {
   last: number;
 }
 
-// rejectWithValue carries a message the error view can show as-is.
+// rejectWithValue carries a message the error view can show as-is. Rejection
+// means Kraken failed — a market with no prices. CoinGecko failing resolves.
 export const fetchCoins = createAsyncThunk<
   Coin[],
   void,
