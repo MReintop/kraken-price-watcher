@@ -1,6 +1,10 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { Coin, FetchStatus } from '../types';
-import { fetchCoins as fetchCoinsFromApi } from '../lib/coins';
+import {
+  fetchCoins as fetchCoinsFromApi,
+  fetchMarketContext as fetchMarketContextFromApi,
+  type CoinContext,
+} from '../lib/coins';
 import type { RootState } from './store';
 
 // An open socket is not a working feed. `live` means Kraken answered for every
@@ -13,9 +17,16 @@ interface CoinsState {
   status: FetchStatus;
   error?: string;
   socket: SocketStatus;
-  // Symbols Kraken refused, or never answered for. Their prices are whatever
-  // CoinGecko last said and will not move.
+  // Symbols Kraken refused, or never answered for. Their prices are whatever the
+  // REST seed last said and will not move.
   unavailable: string[];
+  // Kept rather than merged and dropped: the two upstreams are independent, so
+  // context can arrive before the prices it decorates and would have nowhere to
+  // go. Read whenever either side lands.
+  context: Record<string, CoinContext>;
+  // The request whose answer is still wanted. Context requests overlap — mount
+  // and pull-to-refresh — and answering last is not the same as being newest.
+  contextRequestId?: string;
 }
 
 const initialState: CoinsState = {
@@ -23,6 +34,7 @@ const initialState: CoinsState = {
   status: FetchStatus.Idle,
   socket: 'connecting',
   unavailable: [],
+  context: {},
 };
 
 // Price only. Kraken's `change_pct` is its own spot market while the 24h figure
@@ -33,7 +45,16 @@ export interface KrakenTick {
   last: number;
 }
 
-// rejectWithValue carries a message the error view can show as-is.
+const decorate = (coin: Coin, context?: CoinContext) => {
+  if (!context) return;
+  coin.image = context.image;
+  coin.market_cap = context.market_cap;
+  coin.total_volume = context.total_volume;
+  coin.price_change_percentage_24h = context.price_change_percentage_24h;
+};
+
+// rejectWithValue carries a message the error view can show as-is. Rejection
+// means Kraken failed — a market with no prices.
 export const fetchCoins = createAsyncThunk<
   Coin[],
   void,
@@ -47,6 +68,13 @@ export const fetchCoins = createAsyncThunk<
     );
   }
 });
+
+// Its own thunk, dispatched alongside the prices rather than joined to them. A
+// failure here is silent by design: the market renders without its context.
+export const fetchMarketContext = createAsyncThunk<CoinContext[], void>(
+  'coins/fetchContext',
+  () => fetchMarketContextFromApi(),
+);
 
 const coinsSlice = createSlice({
   name: 'coins',
@@ -81,11 +109,24 @@ const coinsSlice = createSlice({
       })
       .addCase(fetchCoins.fulfilled, (state, action: PayloadAction<Coin[]>) => {
         state.items = action.payload;
+        for (const coin of state.items) decorate(coin, state.context[coin.id]);
         state.status = FetchStatus.Succeeded;
       })
       .addCase(fetchCoins.rejected, (state, action) => {
         state.status = FetchStatus.Failed;
         state.error = action.payload ?? 'Failed to load prices';
+      })
+      .addCase(fetchMarketContext.pending, (state, action) => {
+        state.contextRequestId = action.meta.requestId;
+      })
+      .addCase(fetchMarketContext.fulfilled, (state, action) => {
+        // A slower earlier request finishing now would put its older market cap,
+        // volume and 24h change back over the newer ones.
+        if (action.meta.requestId !== state.contextRequestId) return;
+        state.context = Object.fromEntries(
+          action.payload.map((entry) => [entry.id, entry]),
+        );
+        for (const coin of state.items) decorate(coin, state.context[coin.id]);
       });
   },
 });

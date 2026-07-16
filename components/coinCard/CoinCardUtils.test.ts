@@ -35,8 +35,8 @@ describe('getCoinDetails', () => {
     const result = getCoinDetails(coin, true);
 
     // Assert
-    expect(result.isUp).toBe(false);
-    expect(result.changeLabel).toContain('▼');
+    expect(result.change?.isUp).toBe(false);
+    expect(result.change?.label).toContain('▼');
   });
 
   it('marks a positive change as up + green', () => {
@@ -47,8 +47,8 @@ describe('getCoinDetails', () => {
     const result = getCoinDetails(coin, true);
 
     // Assert
-    expect(result.isUp).toBe(true);
-    expect(result.changeLabel).toBe('▲ 2.50%');
+    expect(result.change?.isUp).toBe(true);
+    expect(result.change?.label).toBe('▲ 2.50%');
   });
 
   it('labels a loss without repeating the sign', () => {
@@ -59,7 +59,7 @@ describe('getCoinDetails', () => {
     const result = getCoinDetails(coin, true);
 
     // Assert — the arrow already says it; "▼ -1.45%" says it twice
-    expect(result.changeLabel).toBe('▼ 1.45%');
+    expect(result.change?.label).toBe('▼ 1.45%');
   });
 
   it('speaks a loss in words, since a screen reader cannot read an arrow', () => {

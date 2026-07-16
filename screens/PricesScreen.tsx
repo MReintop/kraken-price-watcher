@@ -12,6 +12,7 @@ import { shallowEqual } from 'react-redux';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
   fetchCoins,
+  fetchMarketContext,
   selectCoinIds,
   selectCoinsError,
   selectCoinsStatus,
@@ -32,16 +33,28 @@ export default function PricesScreen({ navigation }: Props) {
 
   useEffect(() => {
     dispatch(fetchCoins());
+    dispatch(fetchMarketContext());
   }, [dispatch]);
 
+  // The spinner follows the prices only. Awaiting context here would put
+  // CoinGecko's retry schedule back in front of the market, one screen down.
   const onRefresh = useCallback(async () => {
+    dispatch(fetchMarketContext());
     await dispatch(fetchCoins());
   }, [dispatch]);
 
   if (status === FetchStatus.Loading) return <LoadingView />;
 
   if (status === FetchStatus.Failed && coinIds.length === 0) {
-    return <ErrorView message={error} onRetry={() => dispatch(fetchCoins())} />;
+    return (
+      <ErrorView
+        message={error}
+        onRetry={() => {
+          dispatch(fetchCoins());
+          dispatch(fetchMarketContext());
+        }}
+      />
+    );
   }
 
   return (

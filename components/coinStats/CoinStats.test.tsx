@@ -28,4 +28,17 @@ describe('CoinStats', () => {
     expect(screen.getByText('24h volume')).toBeTruthy();
     expect(screen.getByText(`$${(890123).toLocaleString()}`)).toBeTruthy();
   });
+
+  it('says so when there is no market context, rather than showing zero', () => {
+    // Arrange — what a CoinGecko outage leaves behind: a real Kraken price and
+    // nothing to put beside it
+    const coin = makeCoin({ market_cap: undefined, total_volume: undefined });
+
+    // Act
+    render(<CoinStats coin={coin} />);
+
+    // Assert — "$0" here is a number nobody reported
+    expect(screen.getByText('Market context unavailable')).toBeTruthy();
+    expect(screen.queryByText('$0')).toBeNull();
+  });
 });

@@ -4,12 +4,29 @@ One slice, `coins`, holding the eight tracked coins plus the health of the feed.
 
 ## Where the price comes from
 
-Two upstreams, split by what each is good for:
+Three sources, split by what each is good for — and, more importantly, by what the app can survive losing:
 
-- **CoinGecko** — identity and market context: name, symbol, image, market cap, 24h volume, and **the 24h change**.
+- **`lib/trackedCoins.json`** — identity: id, display name, symbol, Kraken pair. Local, so it cannot fail.
 - **Kraken** — every price: the REST `/Ticker` seed, the socket ticks, and the candles.
+- **CoinGecko** — market context: image, market cap, 24h volume, and **the 24h change**.
 
 The price never changes source, so it never jumps. The division is enforced in `lib/coins.ts`.
+
+**Identity being local is what makes the other two independent.** A row needs a name, a symbol and a price to be worth rendering; two of those three are on disk. So Kraken decides whether there is a market to show, and CoinGecko only decorates it.
+
+**They are two thunks, not one call that joins them — and the joining is what mattered, not the `Promise` combinator.** `fetchCoins` fetches Kraken; `fetchMarketContext` fetches CoinGecko; `PricesScreen` dispatches both and awaits neither on behalf of the other. A Kraken failure rejects and gives the error view: no prices, no market. A CoinGecko failure is silent — the 24h pill is omitted rather than shown as a flat `0.00%`, and the stats card says `Market context unavailable`.
+
+`Promise.allSettled` looked like it solved this and did not. It tolerates a CoinGecko _rejection_, but it still **awaits** one, and that call is retried: a 429 with `Retry-After: 30` runs three capped sleeps before rejecting, so every Kraken price stayed off the screen for about ninety seconds while the app had known them all along. A test using a 404 never saw it, because a 404 is the one failure that is not retried. The failure that actually happens to a public API is the rate limit.
+
+The pull-to-refresh spinner follows the prices only, for the same reason — awaiting context there would put the same wait back, one screen down.
+
+**Context is kept in the slice, keyed by id, because the two answer in either order.** Whichever lands second does the merge: `fetchCoins.fulfilled` decorates from context already held, and `fetchMarketContext.fulfilled` decorates rows already rendered. Context arriving before the prices it describes would otherwise have nowhere to go. `PricesScreen.test.tsx` covers both orders, and removing either merge fails exactly one of them.
+
+**Context fulfilments are matched against `contextRequestId`, because arriving last is not the same as being newest.** Mount and pull-to-refresh overlap, and a slow first request answering after a fast second one would put its older market cap, volume and 24h change back over the newer ones. Only the newest request in flight may write the cache. `fetchCoins` has no such guard yet — the same overlap can replace a newer price list with an older one, and that fix belongs with preserving live ticks across a refresh rather than here.
+
+**Whether context is missing is read off the coin, not off a flag.** There is no `contextAvailable`: with eight fixed instruments, "CoinGecko is down" and "this coin has no context" coincide, so a flag would be a second source of truth for what `market_cap == null` already says — and one the rendered card could drift from.
+
+**`lib/coins.ts` lists CoinGecko's fields one by one instead of spreading the response.** The body is cast, not validated, so it arrives carrying its own `id`, `name` and `symbol` no matter what the type says. A spread put those over the registry's, and identity silently changed source depending on whether CoinGecko answered — the same bug the price split exists to prevent, one field over.
 
 **The 24h change is CoinGecko's on purpose**, and two Kraken fields are deliberately left unread to keep it that way.
 
@@ -68,7 +85,7 @@ The badge is no longer part of the lie: a symbol the socket isn't really receivi
 
 **The trigger is the point.** Starting on `fulfilled` made CoinGecko a prerequisite for even _opening_ the socket: rate-limited or down, the app showed an error and never connected, even though Kraken was healthy and Kraken is where every price comes from. It only reached for CoinGecko's response because it wanted the symbol set — but the symbols are local, in `lib/trackedCoins.json`.
 
-**This does not yet make the app survive a CoinGecko outage, and the socket starting early is not the same as prices being visible.** `fetchCoins()` still joins both upstreams with `Promise.all`, so a CoinGecko rejection rejects the thunk and `items` stays empty — and `tickersApplied` looks its ticks up _in_ `items`, so every Kraken tick arrives, finds no row, and is dropped. The screen shows an error while a healthy feed talks to nobody. Fixing it means splitting instrument identity from market context so a row can render on the local registry plus a Kraken price alone.
+**Starting the socket early only pays off because the rows no longer wait for CoinGecko.** `tickersApplied` resolves each tick against `items`, so an early socket feeding an empty `items` would drop every tick it received and change nothing on screen. The trigger and the two-thunk split above are one fix in two halves; either alone is theatre.
 
 Middleware rather than a component effect, because an effect ties the connection's lifetime to a mount and reconnects on every remount. The middleware sees the app start without being a view.
 

@@ -1,12 +1,14 @@
+// Identity is local and the price is Kraken's, so both are always here. The rest
+// is CoinGecko's market context — a coin without it is still a coin with a price.
 export type Coin = {
   id: string;
   name: string;
   symbol: string;
-  image: string;
   current_price: number;
-  price_change_percentage_24h: number;
-  market_cap: number;
-  total_volume: number;
+  image?: string;
+  price_change_percentage_24h?: number;
+  market_cap?: number;
+  total_volume?: number;
 };
 
 // Navigation route names — one source of truth instead of magic strings.

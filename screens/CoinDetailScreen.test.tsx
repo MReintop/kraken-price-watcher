@@ -33,6 +33,7 @@ const setupStore = (items: Coin[]) =>
         status: FetchStatus.Succeeded,
         socket: 'live' as const,
         unavailable: [],
+        context: {},
       },
     },
   });

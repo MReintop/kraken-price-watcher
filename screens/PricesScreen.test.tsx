@@ -2,6 +2,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import coinsReducer, {
+  fetchMarketContext,
   socketStatusChanged,
   subscriptionsSettled,
   tickersApplied,
@@ -56,6 +57,20 @@ describe('PricesScreen (integration with a real store)', () => {
     expect(await screen.findByText(/64,788/)).toBeTruthy();
   });
 
+  it('names the coin from the registry, not from CoinGecko', async () => {
+    // Arrange — CoinGecko is answering, and calling it something else
+    stubUpstreams({
+      coins: [makeCoin({ name: 'Bitcoin (renamed upstream)' })],
+    });
+
+    // Act
+    renderScreen();
+
+    // Assert — identity must not change source with CoinGecko's health, for the
+    // same reason the price does not
+    expect(await screen.findByText('Bitcoin')).toBeTruthy();
+  });
+
   it('navigates to the detail screen with the coin when a card is pressed', async () => {
     // Arrange
     stubUpstreams();
@@ -71,16 +86,163 @@ describe('PricesScreen (integration with a real store)', () => {
     });
   });
 
-  it('shows an error state when the identity request fails', async () => {
+  it('shows an error state when Kraken cannot be reached', async () => {
     // Arrange — 404, not 503: a 5xx is retried with backoff, so it would not
     // surface for several seconds. The retry itself is covered in lib/http.
-    stubUpstreams({ metadataStatus: 404 });
+    stubUpstreams({ tickerStatus: 404 });
 
     // Act
     renderScreen();
 
-    // Assert
+    // Assert — no Kraken means no prices, which is the one upstream that is
+    // the product rather than decoration around it
     expect(await screen.findByText(/HTTP 404/)).toBeTruthy();
+  });
+
+  // Kraken owns every price; CoinGecko owns the figures beside them. An outage
+  // in the second must not take the first off screen.
+  describe('when CoinGecko is down but Kraken is healthy', () => {
+    const renderWithoutContext = () => {
+      stubUpstreams({
+        coins: [makeCoin({ current_price: 64788 })],
+        metadataStatus: 404,
+      });
+      return renderScreen();
+    };
+
+    it('still shows the Kraken price', async () => {
+      // Arrange / Act
+      renderWithoutContext();
+
+      // Assert
+      expect(await screen.findByText(/64,788/)).toBeTruthy();
+    });
+
+    it('still names the coin, from the local registry', async () => {
+      // Arrange / Act
+      renderWithoutContext();
+
+      // Assert — identity is local, so it does not depend on either upstream
+      expect(await screen.findByText('Bitcoin')).toBeTruthy();
+      expect(screen.getByText('BTC')).toBeTruthy();
+    });
+
+    it('applies live ticks to a coin CoinGecko never described', async () => {
+      // Arrange
+      const { store } = renderWithoutContext();
+      await screen.findByText('Bitcoin');
+
+      // Act
+      act(() => {
+        store.dispatch(tickersApplied([{ symbol: 'BTC', last: 70000 }]));
+      });
+
+      // Assert — the row exists to receive the tick, which is the whole point
+      // of not gating it on metadata
+      expect(await screen.findByText(/70,000/)).toBeTruthy();
+    });
+
+    it('omits the 24h change rather than inventing a flat one', async () => {
+      // Arrange / Act
+      renderWithoutContext();
+      await screen.findByText('Bitcoin');
+
+      // Assert — "▲ 0.00%" would be a number nobody reported
+      expect(screen.queryByText(/%/)).toBeNull();
+    });
+
+    it('does not show the error screen', async () => {
+      // Arrange / Act
+      renderWithoutContext();
+      await screen.findByText('Bitcoin');
+
+      // Assert
+      expect(screen.queryByText(/HTTP 404/)).toBeNull();
+    });
+
+    it('does not wait out CoinGecko’s retry schedule to show a price', async () => {
+      // Arrange — a rate limit is the failure that actually happens, and unlike a
+      // 404 it is retried: three sleeps of up to thirty seconds each
+      stubUpstreams({
+        coins: [makeCoin({ current_price: 64788 })],
+        metadataStatus: 429,
+        metadataRetryAfter: '30',
+      });
+
+      // Act
+      renderScreen();
+
+      // Assert — Kraken answered at once, so the price is already known; holding
+      // it for CoinGecko's backoff is a blank screen for a minute and a half
+      expect(await screen.findByText(/64,788/)).toBeTruthy();
+    });
+  });
+
+  it('decorates the prices when context arrives after them', async () => {
+    // Arrange — Kraken answers first, which is the whole point of not joining
+    // the two: the row is on screen before CoinGecko has said anything
+    stubUpstreams({
+      coins: [
+        makeCoin({ market_cap: 1234567, price_change_percentage_24h: 2.5 }),
+      ],
+      metadataDelayMs: 40,
+    });
+    const { store } = renderScreen();
+    await screen.findByText('Bitcoin');
+    expect(screen.queryByText('▲ 2.50%')).toBeNull();
+
+    // Assert — context catches up and lands on a row already rendered
+    expect(await screen.findByText('▲ 2.50%')).toBeTruthy();
+    expect(store.getState().coins.items[0].market_cap).toBe(1234567);
+  });
+
+  it('decorates the prices when context arrives before them', async () => {
+    // Arrange — a store that already holds context, as a slow Kraken would leave it
+    const store = setupStore();
+    stubUpstreams({ coins: [makeCoin({ price_change_percentage_24h: 2.5 })] });
+    await store.dispatch(fetchMarketContext());
+
+    // Act — the prices land second
+    renderScreen(store);
+
+    // Assert — context waiting in the store must not be dropped on the floor
+    expect(await screen.findByText('▲ 2.50%')).toBeTruthy();
+  });
+
+  it('ignores a context response a newer request has already replaced', async () => {
+    // Arrange — a pull-to-refresh can overtake the request from mount. The first
+    // is slow and carries the older numbers; the second answers immediately.
+    const contextBody = (pct: number, cap: number) => [
+      {
+        id: 'bitcoin',
+        image: 'x',
+        market_cap: cap,
+        total_volume: 1,
+        price_change_percentage_24h: pct,
+      },
+    ];
+    let call = 0;
+    globalThis.fetch = jest.fn(async () => {
+      const stale = call++ === 0;
+      if (stale) await new Promise((r) => setTimeout(r, 60));
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        json: async () =>
+          stale ? contextBody(1.11, 111) : contextBody(9.99, 999),
+      };
+    }) as unknown as typeof fetch;
+
+    // Act — both in flight; the newer one lands first, the older one lands last
+    const store = setupStore();
+    await Promise.all([
+      store.dispatch(fetchMarketContext()),
+      store.dispatch(fetchMarketContext()),
+    ]);
+
+    // Assert — arriving last is not the same as being newest
+    expect(store.getState().coins.context.bitcoin.market_cap).toBe(999);
   });
 
   it('shows a live tick without refetching', async () => {

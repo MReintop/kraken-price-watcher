@@ -14,76 +14,29 @@ import { WebSocketServer } from 'ws';
 const TRACKED = JSON.parse(
   readFileSync(new URL('../../lib/trackedCoins.json', import.meta.url), 'utf8'),
 );
-const pairFor = (id) => TRACKED.find((coin) => coin.id === id).pair;
 
 const PORT = Number(process.env.STUB_PORT ?? 4001);
 const TICK_MS = Number(process.env.STUB_TICK_MS ?? 1000);
 
-const COINS = [
-  {
-    id: 'bitcoin',
-    name: 'Bitcoin',
-    symbol: 'btc',
-    price: 62888,
-    change24h: -1.45,
-  },
-  {
-    id: 'ethereum',
-    name: 'Ethereum',
-    symbol: 'eth',
-    price: 1883.21,
-    change24h: 2.5,
-  },
-  {
-    id: 'solana',
-    name: 'Solana',
-    symbol: 'sol',
-    price: 142.5,
-    change24h: 5.1,
-  },
-  {
-    id: 'cardano',
-    name: 'Cardano',
-    symbol: 'ada',
-    price: 0.38,
-    change24h: -0.75,
-  },
-  {
-    id: 'ripple',
-    name: 'XRP',
-    symbol: 'xrp',
-    price: 0.52,
-    change24h: 1.2,
-  },
-  {
-    id: 'dogecoin',
-    name: 'Dogecoin',
-    symbol: 'doge',
-    price: 0.12,
-    change24h: -3.4,
-  },
-  {
-    id: 'polkadot',
-    name: 'Polkadot',
-    symbol: 'dot',
-    price: 4.15,
-    change24h: 0.9,
-  },
-  {
-    id: 'chainlink',
-    name: 'Chainlink',
-    symbol: 'link',
-    price: 11.3,
-    change24h: 4.2,
-  },
-];
+// Fixture prices only. Identity comes from TRACKED, so a coin renamed there
+// cannot disagree with itself here.
+const FIXTURES = {
+  bitcoin: { price: 62888, change24h: -1.45 },
+  ethereum: { price: 1883.21, change24h: 2.5 },
+  solana: { price: 142.5, change24h: 5.1 },
+  cardano: { price: 0.38, change24h: -0.75 },
+  ripple: { price: 0.52, change24h: 1.2 },
+  dogecoin: { price: 0.12, change24h: -3.4 },
+  polkadot: { price: 4.15, change24h: 0.9 },
+  chainlink: { price: 11.3, change24h: 4.2 },
+};
+
+const COINS = TRACKED.map((coin) => ({ ...coin, ...FIXTURES[coin.id] }));
 
 const round = (n) => Math.round(n * 100) / 100;
 
 // CoinGecko: identity only. Prices here are deliberately absent — the app takes
 // them from Kraken.
-const withPair = (coin) => ({ ...coin, pair: pairFor(coin.id) });
-
 const markets = () =>
   COINS.map((coin) => ({
     id: coin.id,
@@ -100,9 +53,10 @@ const markets = () =>
 const ticker = (requested) => {
   const wanted = new Set(requested.split(','));
   return Object.fromEntries(
-    COINS.map(withPair)
-      .filter((coin) => wanted.has(coin.pair))
-      .map((coin) => [coin.pair, { c: [String(coin.price), '1.0'] }]),
+    COINS.filter((coin) => wanted.has(coin.pair)).map((coin) => [
+      coin.pair,
+      { c: [String(coin.price), '1.0'] },
+    ]),
   );
 };
 
@@ -112,7 +66,7 @@ const ticker = (requested) => {
 const EPOCH_SECONDS = Date.UTC(2026, 0, 1) / 1000;
 
 const ohlc = (pair, interval) => {
-  const coin = COINS.map(withPair).find((entry) => entry.pair === pair);
+  const coin = COINS.find((entry) => entry.pair === pair);
   if (!coin) return null;
   const count = 60;
   const stepSeconds = interval * 60;

@@ -27,7 +27,8 @@ export default function CoinCard({ coinId, onSelect }: CoinCardProps) {
   if (!coin) return null;
 
   const coinDetails = getCoinDetails(coin, !unavailable);
-  const change = changeColors(coinDetails.isUp);
+  const change = coinDetails.change;
+  const changeColor = change ? changeColors(change.isUp) : undefined;
 
   return (
     <Pressable
@@ -45,13 +46,18 @@ export default function CoinCard({ coinId, onSelect }: CoinCardProps) {
       }}
     >
       <View style={styles.header}>
-        <Image
-          source={{ uri: coin.image }}
-          style={styles.icon}
-          accessibilityElementsHidden
-          importantForAccessibility="no"
-          alt=""
-        />
+        {/* Identity survives without artwork: the name and symbol are local. */}
+        {coin.image ? (
+          <Image
+            source={{ uri: coin.image }}
+            style={styles.icon}
+            accessibilityElementsHidden
+            importantForAccessibility="no"
+            alt=""
+          />
+        ) : (
+          <View style={[styles.icon, styles.iconPlaceholder]} />
+        )}
         <View style={styles.identity}>
           <Text style={styles.name} numberOfLines={1}>
             {coinDetails.name}
@@ -66,11 +72,13 @@ export default function CoinCard({ coinId, onSelect }: CoinCardProps) {
 
       {unavailable && <Text style={styles.frozen}>Not updating</Text>}
 
-      <View style={[styles.pill, { backgroundColor: change.tint }]}>
-        <Text style={[styles.change, { color: change.fg }]}>
-          {coinDetails.changeLabel}
-        </Text>
-      </View>
+      {change && changeColor && (
+        <View style={[styles.pill, { backgroundColor: changeColor.tint }]}>
+          <Text style={[styles.change, { color: changeColor.fg }]}>
+            {change.label}
+          </Text>
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -92,6 +100,7 @@ const styles = StyleSheet.create({
   cardPressed: { backgroundColor: theme.color.surfaceAlt },
   header: { flexDirection: 'row', alignItems: 'center', gap: theme.space.sm },
   icon: { width: 32, height: 32, borderRadius: theme.radius.pill },
+  iconPlaceholder: { backgroundColor: theme.color.surfaceAlt },
   identity: { flexShrink: 1 },
   name: {
     color: theme.color.text,
