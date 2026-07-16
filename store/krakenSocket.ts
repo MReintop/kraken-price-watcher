@@ -245,8 +245,6 @@ export function startKrakenTicker(
       }
 
       if (msg.channel !== 'ticker' || !Array.isArray(msg.data)) return;
-      ticked = true;
-      claimLive(); // also what un-stales the feed after silence
       for (const t of msg.data) {
         // Checked, not trusted: the frame is JSON off a socket. A price that is
         // not a finite number reaches chart geometry and draws nothing at all,
@@ -257,7 +255,12 @@ export function startKrakenTicker(
         }
         const base = baseOf(t.symbol);
         buffer.set(base, { symbol: base, last: t.last });
+        // A price, not just a frame: an empty or malformed ticker proves the
+        // transport is alive — which the watchdog already tracks — but leaves
+        // every on-screen price where it was, so it cannot earn "Live".
+        ticked = true;
       }
+      if (ticked) claimLive(); // also what un-stales the feed after silence
     };
 
     socket.onclose = () => {
