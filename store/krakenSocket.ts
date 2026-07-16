@@ -21,10 +21,8 @@ const WS_URL =
   process.env.EXPO_PUBLIC_KRAKEN_WS_URL ?? 'wss://ws.kraken.com/v2';
 const FLUSH_MS = 250; // coalesce ticks into at most one dispatch per 250ms
 
-// Kraken heartbeats about every second when nothing else is flowing, so silence
-// this long means the connection is dead in a way it has not told us about —
-// the failure a price screen must never render as "Live". The watchdog tracks
-// *frames*, not ticks: a quiet market is not a broken one.
+// Kraken heartbeats ~1s, so this much frame silence is a dead connection, not a
+// quiet market. Counts frames, not ticks.
 const STALE_AFTER_MS = 10_000;
 
 // How long Kraken gets to answer the subscribe. A reply that never comes is a
@@ -37,9 +35,8 @@ const MAX_BACKOFF_MS = 30_000;
 // never leaves CONNECTING sits on the platform's TCP timeout saying "connecting".
 const CONNECT_TIMEOUT_MS = 10_000;
 
-// Every timer belongs to the connection that armed it: sharing one handle lets a
-// replacement overwrite it, leaving the old interval running with nothing to
-// clear it by.
+// Each connection owns its timers: a shared handle lets a replacement overwrite
+// it, orphaning the old interval with nothing left to clear it.
 interface Connection {
   socket: WebSocket;
   generation: number;
@@ -70,9 +67,8 @@ export function startKrakenTicker(
   let generation = 0;
   let status: SocketStatus = 'connecting';
 
-  // Held locally and compared before dispatching: every frame proves the feed is
-  // live, and re-announcing that per frame would put a dispatch on the hot path
-  // the flush window exists to keep off it.
+  // Compared before dispatching: re-announcing the status every frame would put
+  // a dispatch on the hot path the flush window exists to keep clear.
   const setStatus = (next: SocketStatus) => {
     if (status === next) return;
     status = next;
@@ -143,15 +139,12 @@ export function startKrakenTicker(
       previous.socket.close();
     }
 
-    // Deliberately not set back to `connecting`. That status means no feed has
-    // ever arrived, so the price on screen is the REST seed and is current. After
-    // a drop it is the dead socket's last, and saying "connecting" over it calls
-    // it current again — so a reconnect stays `offline` until a fresh ticker.
+    // Not back to `connecting`: that means no feed has ever arrived, but after a
+    // drop the price is the dead socket's last. Stay `offline` until a fresh tick.
     conn.connectTimer = setTimeout(() => socket.close(), CONNECT_TIMEOUT_MS);
 
-    // This connection has answered for nothing yet, and the last one's verdict is
-    // not its. A total refusal also closes without settling, so leaving the old
-    // list in place would let a dead socket's opinion outlive it.
+    // This connection has answered for nothing yet; the last one's verdict is not
+    // its, and a total refusal closes without settling, so it would outlive it.
     dispatch(subscriptionsSettled([]));
 
     // Kraken answers the subscribe once per symbol. Tracking which ones are
@@ -159,11 +152,9 @@ export function startKrakenTicker(
     const awaiting = new Set(pairs);
     const refused = new Set<string>();
 
-    // Both halves of the word, tracked apart because they arrive in either order.
-    // `settled` is knowing which symbols we are subscribed to; `ticked` is data
-    // actually flowing. An acknowledgement is only a promise to send data, and
-    // one symbol trading is not a feed — until both hold, the number on screen is
-    // still the REST seed and calling it live would cover for it.
+    // `live` needs both, and they arrive in either order: `settled` (every symbol
+    // answered for) and `ticked` (data flowing). An ack is a promise to send
+    // data, not data; one symbol trading is not a feed.
     let settled = false;
     let ticked = false;
     const claimLive = () => {
@@ -192,10 +183,8 @@ export function startKrakenTicker(
       // everything below this line arms a timer or claims the feed.
       if (!isCurrent(conn)) return;
 
-      // Deliberately not live yet, and the backoff stays where it is: an open
-      // transport says nothing about whether Kraken accepted the subscription.
-      // A server that accepts and immediately closes would otherwise reset the
-      // backoff every cycle and spin at one reconnect a second.
+      // Backoff stays put: an open transport says nothing about acceptance, and a
+      // server that accepts then instantly closes would otherwise spin at 1/s.
       socket.send(subscribeRequest(pairs));
       conn.connectTimer = stopTimer(conn.connectTimer);
       conn.flushTimer = setInterval(flush, FLUSH_MS);
@@ -203,9 +192,8 @@ export function startKrakenTicker(
 
       conn.handshakeTimer = setTimeout(() => {
         if (awaiting.size === 0) return;
-        // Silence is an answer: a symbol Kraken never replied for is one we are
-        // not receiving, and the row should say so rather than show a price that
-        // stopped moving without explanation.
+        // Silence is an answer: a symbol never replied for is one we are not
+        // receiving, and the row should say so rather than freeze unexplained.
         for (const pair of awaiting) refused.add(pair);
         awaiting.clear();
         settle();
@@ -260,11 +248,9 @@ export function startKrakenTicker(
     };
   };
 
-  // A backgrounded app is not a user watching prices. The OS may suspend or kill
-  // the socket anyway, and retrying against a suspended radio just spends
-  // battery to arrive at a price nobody read. `inactive` is deliberately not
-  // handled: it is the app switcher and notification shade, and tearing the feed
-  // down for a glance would reconnect on every one.
+  // A backgrounded app is nobody watching prices, so retrying against a suspended
+  // radio just spends battery. `inactive` is left alone deliberately — it is the
+  // app switcher, and tearing the feed down for a glance reconnects on every one.
   const unsubscribeAppState = subscribeAppState((next) => {
     if (next === 'background' && !backgrounded) {
       backgrounded = true;
