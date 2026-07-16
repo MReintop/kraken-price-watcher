@@ -664,6 +664,60 @@ describe('startKrakenTicker', () => {
       expect(jest.getTimerCount()).toBe(0);
     });
 
+    it('ignores an open event from a connection it has already replaced', () => {
+      // Arrange
+      startAndSubscribe();
+      const dropped = latest();
+      sendAppTo('background');
+      sendAppTo('active');
+      dropped.sent.length = 0;
+
+      // Act — a socket still connecting when it was retired, opening too late
+      dropped.onopen?.();
+
+      // Assert — a retired socket has no business subscribing to anything
+      expect(dropped.sent).toHaveLength(0);
+    });
+
+    it('does not let a replaced connection mark the live feed stale', () => {
+      // Arrange
+      startAndSubscribe();
+      const dropped = latest();
+      sendAppTo('background');
+      sendAppTo('active');
+      latest().onopen?.();
+      latest().onmessage?.(subscribeReply('BTC/USD'));
+      latest().onmessage?.(subscribeReply('ETH/USD'));
+      dispatch.mockClear();
+
+      // Act — the retired socket opens late and arms its watchdog, while the
+      // live one keeps receiving
+      dropped.onopen?.();
+      jest.advanceTimersByTime(5000);
+      latest().onmessage?.(tickerMessage([{ symbol: 'BTC/USD', last: 1 }]));
+      jest.advanceTimersByTime(6000);
+
+      // Assert — the watchdog of a dead connection must not speak for the feed
+      // that replaced it
+      expect(dispatch).not.toHaveBeenCalledWith(socketStatusChanged('stale'));
+    });
+
+    it('leaves no timers behind when a replaced connection opens late', () => {
+      // Arrange
+      const stop = startAndSubscribe();
+      const dropped = latest();
+      sendAppTo('background');
+      sendAppTo('active');
+      latest().onopen?.();
+
+      // Act — the late open would arm timers on a context already released
+      dropped.onopen?.();
+      stop();
+
+      // Assert
+      expect(jest.getTimerCount()).toBe(0);
+    });
+
     it('survives rapid background/foreground cycles without stacking timers', () => {
       // Arrange
       const stop = startAndSubscribe();

@@ -94,6 +94,7 @@ export function startKrakenTicker(
     if (timer) clearTimeout(timer);
     return null;
   };
+  const isCurrent = (conn: Connection) => conn.generation === generation;
 
   // Unconditional: a connection's timers die with it whether or not its state
   // still matters to anyone.
@@ -105,12 +106,11 @@ export function startKrakenTicker(
     conn.connectTimer = stopTimer(conn.connectTimer);
   };
 
-  // Armed when the socket opens, not on the first frame: a connection that opens
-  // and never says anything is the case worth catching, and waiting for a frame
-  // to start watching for missing frames waits forever.
+  // Armed when the socket opens, not on the first frame
   const armWatchdog = (conn: Connection) => {
     conn.staleTimer = stopTimer(conn.staleTimer);
     conn.staleTimer = setTimeout(() => {
+      if (!isCurrent(conn)) return;
       setStatus('stale');
       // Say it, then fix it. Closing routes this through the reconnect path
       // rather than leaving a half-open socket frozen and believed.
@@ -157,7 +157,7 @@ export function startKrakenTicker(
     const refused = new Set<string>();
 
     const settle = () => {
-      if (awaiting.size > 0) return;
+      if (awaiting.size > 0 || !isCurrent(conn)) return;
       conn.handshakeTimer = stopTimer(conn.handshakeTimer);
 
       if (refused.size === pairs.length) {
@@ -173,6 +173,10 @@ export function startKrakenTicker(
     };
 
     socket.onopen = () => {
+      // A socket still connecting when it was retired can open afterwards, and
+      // everything below this line arms a timer or claims the feed.
+      if (!isCurrent(conn)) return;
+
       // Deliberately not live yet, and the backoff stays where it is: an open
       // transport says nothing about whether Kraken accepted the subscription.
       // A server that accepts and immediately closes would otherwise reset the
@@ -199,7 +203,7 @@ export function startKrakenTicker(
     };
 
     socket.onmessage = (event) => {
-      if (conn.generation !== generation) return;
+      if (!isCurrent(conn)) return;
 
       let msg: KrakenMessage;
       try {
@@ -239,7 +243,7 @@ export function startKrakenTicker(
       release(conn);
       // The generation gates what this connection may still say, never whether it
       // cleans up.
-      if (conn.generation !== generation) return;
+      if (!isCurrent(conn)) return;
       setStatus('offline');
       // Anything still buffered belongs to a dead connection; flushing it after
       // the reconnect would present a pre-drop price as a current one.
