@@ -27,7 +27,12 @@ The price never changes source, so it never jumps. The division is enforced in `
 
 **The header counts refusals against the rows that exist, not against `unavailable.length`.** The socket subscribes from the registry while `items` holds whatever Kraken priced, so the two sets can differ: a symbol refused by the socket may have no row at all, and counting it reports a shortfall against a total it was never part of — `Degraded 0/1` while the one visible coin is live.
 
-**`live` still means "Kraken acknowledged, and something has arrived since"** — an acknowledgement alone is not enough to earn the word, but a heartbeat is. A server that acknowledges and then heartbeats forever without ever sending a ticker record would hold `live`. With eight liquid pairs that is theory rather than practice, and the watchdog's job is transport silence, not price freshness.
+**`live` needs both halves, and they arrive in either order.** `settled` is knowing which symbols we are subscribed to; `ticked` is a ticker frame actually landing. Neither alone earns the word:
+
+- **An acknowledgement is a promise to send data, not data.** A server can accept every subscription and then only heartbeat. The price on screen is still the REST seed, so `Live` over it would be exactly the frozen-number lie the state exists to prevent.
+- **One symbol trading is not a feed.** A ticker can beat the last subscribe reply, and until every symbol is answered for there is no telling what `Live` is covering for.
+
+So `settle()` records `settled` and the ticker branch records `ticked`; whichever lands second claims the word. A ticker is also what un-stales the feed after silence, which falls out of the same rule rather than being a second path.
 
 **`stale` is the state a boolean cannot express**: connected, believed healthy, and silently frozen. Kraken heartbeats roughly every second, so ten seconds of silence is a dead connection rather than a quiet market — the socket says so and closes it, because sitting on a half-open socket while rendering "Live" is the one failure a price screen must never have.
 

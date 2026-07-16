@@ -109,9 +109,36 @@ describe('startKrakenTicker', () => {
     expect(dispatch).not.toHaveBeenCalledWith(socketStatusChanged('live'));
   });
 
-  it('reports live once Kraken acknowledges the subscription', () => {
-    // Arrange / Act
+  it('does not claim live on an acknowledgement alone', () => {
+    // Arrange / Act — Kraken accepts every symbol, then sends nothing
     startAndSubscribe();
+
+    // Assert — an acknowledgement is a promise to send data, not data. The price
+    // on screen is still the REST seed, and a server that acknowledges and then
+    // only heartbeats would hold "Live" over a frozen number forever.
+    expect(dispatch).not.toHaveBeenCalledWith(socketStatusChanged('live'));
+  });
+
+  it('does not claim live on a ticker while a symbol is still unanswered', () => {
+    // Arrange
+    startKrakenTicker(['btc', 'eth'], dispatch as unknown as AppDispatch);
+    latest().onopen?.();
+    latest().onmessage?.(subscribeReply('BTC/USD'));
+
+    // Act — BTC starts trading before Kraken has answered for ETH
+    latest().onmessage?.(tickerMessage([{ symbol: 'BTC/USD', last: 42 }]));
+
+    // Assert — data flowing on one symbol is not a feed; until every symbol is
+    // answered for there is no telling what "Live" is covering for
+    expect(dispatch).not.toHaveBeenCalledWith(socketStatusChanged('live'));
+  });
+
+  it('reports live once the first ticker actually arrives', () => {
+    // Arrange
+    startAndSubscribe(['btc']);
+
+    // Act
+    latest().onmessage?.(tickerMessage([{ symbol: 'BTC/USD', last: 42 }]));
 
     // Assert
     expect(dispatch).toHaveBeenCalledWith(socketStatusChanged('live'));
@@ -147,9 +174,10 @@ describe('startKrakenTicker', () => {
     startKrakenTicker(['btc', 'eth'], dispatch as unknown as AppDispatch);
     latest().onopen?.();
 
-    // Act — one accepted, one refused
+    // Act — one accepted, one refused, and BTC starts trading
     latest().onmessage?.(subscribeReply('BTC/USD'));
     latest().onmessage?.(subscribeReply('ETH/USD', false));
+    latest().onmessage?.(tickerMessage([{ symbol: 'BTC/USD', last: 42 }]));
 
     // Assert — BTC really is live; ETH is named rather than quietly frozen
     expect(dispatch).toHaveBeenCalledWith(subscriptionsSettled(['ETH']));
@@ -167,7 +195,6 @@ describe('startKrakenTicker', () => {
 
     // Assert — silence is an answer, and waiting forever is not
     expect(dispatch).toHaveBeenCalledWith(subscriptionsSettled(['ETH']));
-    expect(dispatch).toHaveBeenCalledWith(socketStatusChanged('live'));
   });
 
   it('does not go live when every symbol is refused', () => {

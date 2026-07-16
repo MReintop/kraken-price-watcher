@@ -3,8 +3,8 @@ import { Coin, FetchStatus } from '../types';
 import { fetchCoins as fetchCoinsFromApi } from '../lib/coins';
 import type { RootState } from './store';
 
-// An open socket is not a working feed. `live` means Kraken acknowledged the
-// subscription *and* has sent something since; `stale` is the dangerous state a
+// An open socket is not a working feed. `live` means Kraken answered for every
+// symbol *and* a ticker has landed since; `stale` is the dangerous state a
 // boolean cannot express — connected, believed healthy, and silently frozen.
 export type SocketStatus = 'connecting' | 'live' | 'stale' | 'offline';
 
