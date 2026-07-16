@@ -1,6 +1,14 @@
 import type { AppDispatch } from './store';
 import { subscribeAppState } from '../lib/appState';
 import {
+  baseOf,
+  pairFor,
+  parseFrame,
+  readSubscribeReply,
+  readTickers,
+  subscribeRequest,
+} from '../lib/krakenProtocol';
+import {
   socketStatusChanged,
   subscriptionsSettled,
   tickersApplied,
@@ -13,10 +21,8 @@ const WS_URL =
   process.env.EXPO_PUBLIC_KRAKEN_WS_URL ?? 'wss://ws.kraken.com/v2';
 const FLUSH_MS = 250; // coalesce ticks into at most one dispatch per 250ms
 
-// Kraken heartbeats about every second when nothing else is flowing, so silence
-// this long means the connection is dead in a way it has not told us about —
-// the failure a price screen must never render as "Live". The watchdog tracks
-// *frames*, not ticks: a quiet market is not a broken one.
+// Kraken heartbeats ~1s, so this much frame silence is a dead connection, not a
+// quiet market. Counts frames, not ticks.
 const STALE_AFTER_MS = 10_000;
 
 // How long Kraken gets to answer the subscribe. A reply that never comes is a
@@ -29,19 +35,8 @@ const MAX_BACKOFF_MS = 30_000;
 // never leaves CONNECTING sits on the platform's TCP timeout saying "connecting".
 const CONNECT_TIMEOUT_MS = 10_000;
 
-interface KrakenMessage {
-  channel?: string;
-  // A subscribe reply — one per symbol, and `result.symbol` says which. Reading
-  // only `success` is how one accepted symbol comes to speak for eight.
-  method?: string;
-  success?: boolean;
-  result?: { symbol?: string };
-  data?: { symbol: string; last: number }[];
-}
-
-// Every timer belongs to the connection that armed it: sharing one handle lets a
-// replacement overwrite it, leaving the old interval running with nothing to
-// clear it by.
+// Each connection owns its timers: a shared handle lets a replacement overwrite
+// it, orphaning the old interval with nothing left to clear it.
 interface Connection {
   socket: WebSocket;
   generation: number;
@@ -51,9 +46,6 @@ interface Connection {
   connectTimer: ReturnType<typeof setTimeout> | null;
 }
 
-// "BTC/USD" -> "BTC", the form the store is keyed by.
-const baseOf = (pair: string) => pair.split('/')[0];
-
 // Jittered, so a Kraken-side blip does not bring every client back in lockstep.
 const jittered = (ms: number) => ms / 2 + Math.random() * (ms / 2);
 
@@ -61,7 +53,7 @@ export function startKrakenTicker(
   symbols: string[],
   dispatch: AppDispatch,
 ): () => void {
-  const pairs = symbols.map((s) => `${s.toUpperCase()}/USD`);
+  const pairs = symbols.map(pairFor);
   const subscribedPairs = new Set(pairs);
   const buffer = new Map<string, KrakenTick>(); // latest tick per symbol wins
 
@@ -75,9 +67,8 @@ export function startKrakenTicker(
   let generation = 0;
   let status: SocketStatus = 'connecting';
 
-  // Held locally and compared before dispatching: every frame proves the feed is
-  // live, and re-announcing that per frame would put a dispatch on the hot path
-  // the flush window exists to keep off it.
+  // Compared before dispatching: re-announcing the status every frame would put
+  // a dispatch on the hot path the flush window exists to keep clear.
   const setStatus = (next: SocketStatus) => {
     if (status === next) return;
     status = next;
@@ -148,15 +139,12 @@ export function startKrakenTicker(
       previous.socket.close();
     }
 
-    // Deliberately not set back to `connecting`. That status means no feed has
-    // ever arrived, so the price on screen is the REST seed and is current. After
-    // a drop it is the dead socket's last, and saying "connecting" over it calls
-    // it current again — so a reconnect stays `offline` until a fresh ticker.
+    // Not back to `connecting`: that means no feed has ever arrived, but after a
+    // drop the price is the dead socket's last. Stay `offline` until a fresh tick.
     conn.connectTimer = setTimeout(() => socket.close(), CONNECT_TIMEOUT_MS);
 
-    // This connection has answered for nothing yet, and the last one's verdict is
-    // not its. A total refusal also closes without settling, so leaving the old
-    // list in place would let a dead socket's opinion outlive it.
+    // This connection has answered for nothing yet; the last one's verdict is not
+    // its, and a total refusal closes without settling, so it would outlive it.
     dispatch(subscriptionsSettled([]));
 
     // Kraken answers the subscribe once per symbol. Tracking which ones are
@@ -164,11 +152,9 @@ export function startKrakenTicker(
     const awaiting = new Set(pairs);
     const refused = new Set<string>();
 
-    // Both halves of the word, tracked apart because they arrive in either order.
-    // `settled` is knowing which symbols we are subscribed to; `ticked` is data
-    // actually flowing. An acknowledgement is only a promise to send data, and
-    // one symbol trading is not a feed — until both hold, the number on screen is
-    // still the REST seed and calling it live would cover for it.
+    // `live` needs both, and they arrive in either order: `settled` (every symbol
+    // answered for) and `ticked` (data flowing). An ack is a promise to send
+    // data, not data; one symbol trading is not a feed.
     let settled = false;
     let ticked = false;
     const claimLive = () => {
@@ -197,25 +183,17 @@ export function startKrakenTicker(
       // everything below this line arms a timer or claims the feed.
       if (!isCurrent(conn)) return;
 
-      // Deliberately not live yet, and the backoff stays where it is: an open
-      // transport says nothing about whether Kraken accepted the subscription.
-      // A server that accepts and immediately closes would otherwise reset the
-      // backoff every cycle and spin at one reconnect a second.
-      socket.send(
-        JSON.stringify({
-          method: 'subscribe',
-          params: { channel: 'ticker', symbol: pairs },
-        }),
-      );
+      // Backoff stays put: an open transport says nothing about acceptance, and a
+      // server that accepts then instantly closes would otherwise spin at 1/s.
+      socket.send(subscribeRequest(pairs));
       conn.connectTimer = stopTimer(conn.connectTimer);
       conn.flushTimer = setInterval(flush, FLUSH_MS);
       armWatchdog(conn);
 
       conn.handshakeTimer = setTimeout(() => {
         if (awaiting.size === 0) return;
-        // Silence is an answer: a symbol Kraken never replied for is one we are
-        // not receiving, and the row should say so rather than show a price that
-        // stopped moving without explanation.
+        // Silence is an answer: a symbol never replied for is one we are not
+        // receiving, and the row should say so rather than freeze unexplained.
         for (const pair of awaiting) refused.add(pair);
         awaiting.clear();
         settle();
@@ -225,42 +203,32 @@ export function startKrakenTicker(
     socket.onmessage = (event) => {
       if (!isCurrent(conn)) return;
 
-      let msg: KrakenMessage;
-      try {
-        msg = JSON.parse((event as { data: string }).data);
-      } catch {
-        return;
-      }
+      const frame = parseFrame((event as { data: string }).data);
+      if (!frame) return;
 
       armWatchdog(conn);
 
-      if (msg.method === 'subscribe') {
-        const pair = msg.result?.symbol;
-        // Without a symbol there is no telling who was answered for; the
-        // handshake deadline is what covers this rather than a guess.
-        if (!pair || !awaiting.delete(pair)) return;
-        if (!msg.success) refused.add(pair);
+      const reply = readSubscribeReply(frame);
+      if (reply) {
+        // A reply for a pair we are not waiting on answers for nobody; the
+        // handshake deadline covers that rather than a guess.
+        if (!awaiting.delete(reply.pair)) return;
+        if (!reply.accepted) refused.add(reply.pair);
         settle();
         return;
       }
 
-      if (msg.channel !== 'ticker' || !Array.isArray(msg.data)) return;
-      for (const t of msg.data) {
-        // Checked, not trusted: the frame is JSON off a socket. A price that is
-        // not a finite number reaches chart geometry and draws nothing at all,
-        // and a symbol we never subscribed to has no row to reach — it would
-        // just accumulate in the store under a key nobody reads.
-        if (!subscribedPairs.has(t?.symbol) || !Number.isFinite(t?.last)) {
-          continue;
-        }
-        const base = baseOf(t.symbol);
-        buffer.set(base, { symbol: base, last: t.last });
-        // A price, not just a frame: an empty or malformed ticker proves the
-        // transport is alive — which the watchdog already tracks — but leaves
-        // every on-screen price where it was, so it cannot earn "Live".
-        ticked = true;
+      // Only believable rows survive readTickers, so an empty or malformed frame
+      // returns here: it proves the transport, which the watchdog tracks, but
+      // carries no price and cannot earn "Live".
+      const tickers = readTickers(frame, subscribedPairs);
+      if (tickers.length === 0) return;
+
+      ticked = true;
+      claimLive(); // also what un-stales the feed after silence
+      for (const { pair, last } of tickers) {
+        buffer.set(baseOf(pair), { symbol: baseOf(pair), last });
       }
-      if (ticked) claimLive(); // also what un-stales the feed after silence
     };
 
     socket.onclose = () => {
@@ -280,11 +248,9 @@ export function startKrakenTicker(
     };
   };
 
-  // A backgrounded app is not a user watching prices. The OS may suspend or kill
-  // the socket anyway, and retrying against a suspended radio just spends
-  // battery to arrive at a price nobody read. `inactive` is deliberately not
-  // handled: it is the app switcher and notification shade, and tearing the feed
-  // down for a glance would reconnect on every one.
+  // A backgrounded app is nobody watching prices, so retrying against a suspended
+  // radio just spends battery. `inactive` is left alone deliberately — it is the
+  // app switcher, and tearing the feed down for a glance reconnects on every one.
   const unsubscribeAppState = subscribeAppState((next) => {
     if (next === 'background' && !backgrounded) {
       backgrounded = true;
