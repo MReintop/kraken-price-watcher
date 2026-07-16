@@ -630,5 +630,138 @@ describe('startKrakenTicker', () => {
       // Assert
       expect(mockUnsubscribeAppState).toHaveBeenCalled();
     });
+
+    it('retires the old connection when a foreground beats its close event', () => {
+      // Arrange — the ordering a real device produces: close() is asynchronous,
+      // so the return can land before the outgoing socket's close event
+      startAndSubscribe();
+      const dropped = latest();
+      sendAppTo('background');
+
+      // Act
+      sendAppTo('active');
+      latest().onopen?.();
+      dropped.onclose?.();
+
+      // Assert — a close arriving this late must not drag the live feed offline
+      expect(dispatch).not.toHaveBeenCalledWith(socketStatusChanged('offline'));
+    });
+
+    it('leaves nothing running after a foreground that beat the old close', () => {
+      // Arrange
+      const stop = startAndSubscribe();
+      const dropped = latest();
+      sendAppTo('background');
+      sendAppTo('active');
+      dropped.onclose?.();
+      latest().onopen?.();
+
+      // Act
+      stop();
+
+      // Assert — the replaced connection's flush interval is unreachable by then,
+      // so a leak here can never be cleared
+      expect(jest.getTimerCount()).toBe(0);
+    });
+
+    it('ignores an open event from a connection it has already replaced', () => {
+      // Arrange
+      startAndSubscribe();
+      const dropped = latest();
+      sendAppTo('background');
+      sendAppTo('active');
+      dropped.sent.length = 0;
+
+      // Act — a socket still connecting when it was retired, opening too late
+      dropped.onopen?.();
+
+      // Assert — a retired socket has no business subscribing to anything
+      expect(dropped.sent).toHaveLength(0);
+    });
+
+    it('does not let a replaced connection mark the live feed stale', () => {
+      // Arrange
+      startAndSubscribe();
+      const dropped = latest();
+      sendAppTo('background');
+      sendAppTo('active');
+      latest().onopen?.();
+      latest().onmessage?.(subscribeReply('BTC/USD'));
+      latest().onmessage?.(subscribeReply('ETH/USD'));
+      dispatch.mockClear();
+
+      // Act — the retired socket opens late and arms its watchdog, while the
+      // live one keeps receiving
+      dropped.onopen?.();
+      jest.advanceTimersByTime(5000);
+      latest().onmessage?.(tickerMessage([{ symbol: 'BTC/USD', last: 1 }]));
+      jest.advanceTimersByTime(6000);
+
+      // Assert — the watchdog of a dead connection must not speak for the feed
+      // that replaced it
+      expect(dispatch).not.toHaveBeenCalledWith(socketStatusChanged('stale'));
+    });
+
+    it('leaves no timers behind when a replaced connection opens late', () => {
+      // Arrange
+      const stop = startAndSubscribe();
+      const dropped = latest();
+      sendAppTo('background');
+      sendAppTo('active');
+      latest().onopen?.();
+
+      // Act — the late open would arm timers on a context already released
+      dropped.onopen?.();
+      stop();
+
+      // Assert
+      expect(jest.getTimerCount()).toBe(0);
+    });
+
+    it('survives rapid background/foreground cycles without stacking timers', () => {
+      // Arrange
+      const stop = startAndSubscribe();
+
+      // Act — every cycle leaves its close event undelivered
+      for (let i = 0; i < 5; i++) {
+        sendAppTo('background');
+        sendAppTo('active');
+        latest().onopen?.();
+      }
+      stop();
+
+      // Assert
+      expect(jest.getTimerCount()).toBe(0);
+    });
+  });
+
+  describe('connect deadline', () => {
+    it('gives up on a transport that never leaves CONNECTING', () => {
+      // Arrange — no onopen: the watchdog arms on open, so nothing else here has
+      // a deadline to offer
+      startKrakenTicker(['btc'], dispatch as unknown as AppDispatch);
+      const socket = latest();
+
+      // Act
+      jest.advanceTimersByTime(10_000);
+
+      // Assert — closing routes this through the reconnect path
+      expect(socket.closed).toBe(true);
+    });
+
+    it('does not close a connection that opened in time', () => {
+      // Arrange
+      startAndSubscribe(['btc']);
+      const socket = latest();
+
+      // Act — a frame at 5s re-arms the watchdog, leaving the connect deadline as
+      // the only thing that could still close this socket by 11s
+      jest.advanceTimersByTime(5000);
+      socket.onmessage?.(tickerMessage([{ symbol: 'BTC/USD', last: 1 }]));
+      jest.advanceTimersByTime(6000);
+
+      // Assert
+      expect(socket.closed).toBe(false);
+    });
   });
 });

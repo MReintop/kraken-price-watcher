@@ -11,6 +11,10 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 const COIN_ID = 'bitcoin';
 let clock = 1_700_000_000_000;
 
+// Long enough for the retry policy's jittered attempts to run out. Real timers,
+// so only a test asserting on retries should pay it.
+const RETRY_SCHEDULE_MS = 10_000;
+
 const mockFetch = () => stubUpstreams();
 
 // The prefetch is fire-and-forget, so a test that only awaits the selected
@@ -193,7 +197,7 @@ describe('useCandles', () => {
     await waitFor(() => expect(result.current.status).toBe(FetchStatus.Failed));
   });
 
-  it('reports failure when the network throws', async () => {
+  it('reports failure once the network has been given its retries', async () => {
     // Arrange
     globalThis.fetch = jest
       .fn()
@@ -202,15 +206,24 @@ describe('useCandles', () => {
     // Act
     const { result } = renderHook(() => useCandles(COIN_ID, Timeframe.Month));
 
-    // Assert
-    await waitFor(() => expect(result.current.status).toBe(FetchStatus.Failed));
+    // Assert — retried before it is believed, so the failure lands a whole
+    // backoff schedule after the throw
+    await waitFor(
+      () => expect(result.current.status).toBe(FetchStatus.Failed),
+      {
+        timeout: RETRY_SCHEDULE_MS,
+      },
+    );
   });
 
   it('does not cache a failed range, so a retry retries', async () => {
-    // Arrange
-    globalThis.fetch = jest
-      .fn()
-      .mockRejectedValue(new Error('offline')) as unknown as typeof fetch;
+    // Arrange — a 404, not a throw: this is about what the cache keeps, and an
+    // unretryable status gets there without waiting out the backoff
+    globalThis.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      headers: new Headers(),
+    }) as unknown as typeof fetch;
     const failed = renderHook(() => useCandles(COIN_ID, Timeframe.Month));
     await waitFor(() =>
       expect(failed.result.current.status).toBe(FetchStatus.Failed),

@@ -25,6 +25,10 @@ const HANDSHAKE_MS = 5000;
 
 const MAX_BACKOFF_MS = 30_000;
 
+// The watchdog only starts once a socket opens, so without this a transport that
+// never leaves CONNECTING sits on the platform's TCP timeout saying "connecting".
+const CONNECT_TIMEOUT_MS = 10_000;
+
 interface KrakenMessage {
   channel?: string;
   // A subscribe reply — one per symbol, and `result.symbol` says which. Reading
@@ -33,6 +37,18 @@ interface KrakenMessage {
   success?: boolean;
   result?: { symbol?: string };
   data?: { symbol: string; last: number }[];
+}
+
+// Every timer belongs to the connection that armed it: sharing one handle lets a
+// replacement overwrite it, leaving the old interval running with nothing to
+// clear it by.
+interface Connection {
+  socket: WebSocket;
+  generation: number;
+  flushTimer: ReturnType<typeof setInterval> | null;
+  staleTimer: ReturnType<typeof setTimeout> | null;
+  handshakeTimer: ReturnType<typeof setTimeout> | null;
+  connectTimer: ReturnType<typeof setTimeout> | null;
 }
 
 // "BTC/USD" -> "BTC", the form the store is keyed by.
@@ -49,11 +65,8 @@ export function startKrakenTicker(
   const subscribedPairs = new Set(pairs);
   const buffer = new Map<string, KrakenTick>(); // latest tick per symbol wins
 
-  let ws: WebSocket | null = null;
-  let flushTimer: ReturnType<typeof setInterval> | null = null;
+  let current: Connection | null = null;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-  let staleTimer: ReturnType<typeof setTimeout> | null = null;
-  let handshakeTimer: ReturnType<typeof setTimeout> | null = null;
   let backoff = 1000;
   let stopped = false;
   let backgrounded = false;
@@ -81,17 +94,27 @@ export function startKrakenTicker(
     if (timer) clearTimeout(timer);
     return null;
   };
+  const isCurrent = (conn: Connection) => conn.generation === generation;
 
-  // Armed when the socket opens, not on the first frame: a connection that opens
-  // and never says anything is the case worth catching, and waiting for a frame
-  // to start watching for missing frames waits forever.
-  const armWatchdog = (socket: WebSocket) => {
-    staleTimer = stopTimer(staleTimer);
-    staleTimer = setTimeout(() => {
+  // Unconditional: a connection's timers die with it whether or not its state
+  // still matters to anyone.
+  const release = (conn: Connection) => {
+    if (conn.flushTimer) clearInterval(conn.flushTimer);
+    conn.flushTimer = null;
+    conn.staleTimer = stopTimer(conn.staleTimer);
+    conn.handshakeTimer = stopTimer(conn.handshakeTimer);
+    conn.connectTimer = stopTimer(conn.connectTimer);
+  };
+
+  // Armed when the socket opens, not on the first frame
+  const armWatchdog = (conn: Connection) => {
+    conn.staleTimer = stopTimer(conn.staleTimer);
+    conn.staleTimer = setTimeout(() => {
+      if (!isCurrent(conn)) return;
       setStatus('stale');
       // Say it, then fix it. Closing routes this through the reconnect path
       // rather than leaving a half-open socket frozen and believed.
-      socket.close();
+      conn.socket.close();
     }, STALE_AFTER_MS);
   };
 
@@ -104,12 +127,29 @@ export function startKrakenTicker(
   };
 
   const connect = () => {
-    // Handlers close over this socket and its generation, not over `ws`: a late
-    // event from a replaced connection would otherwise act on the live one.
+    // Handlers close over this context and its generation, not over `current`: a
+    // late event from a replaced connection would otherwise act on the live one.
     const socket = new WebSocket(WS_URL);
-    const mine = ++generation;
-    ws = socket;
+    const conn: Connection = {
+      socket,
+      generation: ++generation,
+      flushTimer: null,
+      staleTimer: null,
+      handshakeTimer: null,
+      connectTimer: null,
+    };
+
+    // Retired here rather than on its close event: a foreground can beat that
+    // event, and by then nothing points at the timers it armed.
+    const previous = current;
+    current = conn;
+    if (previous) {
+      release(previous);
+      previous.socket.close();
+    }
+
     setStatus('connecting');
+    conn.connectTimer = setTimeout(() => socket.close(), CONNECT_TIMEOUT_MS);
 
     // Kraken answers the subscribe once per symbol. Tracking which ones are
     // still outstanding is what stops the first "yes" speaking for all of them.
@@ -117,8 +157,8 @@ export function startKrakenTicker(
     const refused = new Set<string>();
 
     const settle = () => {
-      if (awaiting.size > 0) return;
-      handshakeTimer = stopTimer(handshakeTimer);
+      if (awaiting.size > 0 || !isCurrent(conn)) return;
+      conn.handshakeTimer = stopTimer(conn.handshakeTimer);
 
       if (refused.size === pairs.length) {
         // Subscribed to nothing. The transport is fine and useless; close it and
@@ -133,6 +173,10 @@ export function startKrakenTicker(
     };
 
     socket.onopen = () => {
+      // A socket still connecting when it was retired can open afterwards, and
+      // everything below this line arms a timer or claims the feed.
+      if (!isCurrent(conn)) return;
+
       // Deliberately not live yet, and the backoff stays where it is: an open
       // transport says nothing about whether Kraken accepted the subscription.
       // A server that accepts and immediately closes would otherwise reset the
@@ -143,10 +187,11 @@ export function startKrakenTicker(
           params: { channel: 'ticker', symbol: pairs },
         }),
       );
-      flushTimer = setInterval(flush, FLUSH_MS);
-      armWatchdog(socket);
+      conn.connectTimer = stopTimer(conn.connectTimer);
+      conn.flushTimer = setInterval(flush, FLUSH_MS);
+      armWatchdog(conn);
 
-      handshakeTimer = setTimeout(() => {
+      conn.handshakeTimer = setTimeout(() => {
         if (awaiting.size === 0) return;
         // Silence is an answer: a symbol Kraken never replied for is one we are
         // not receiving, and the row should say so rather than show a price that
@@ -158,7 +203,7 @@ export function startKrakenTicker(
     };
 
     socket.onmessage = (event) => {
-      if (mine !== generation) return;
+      if (!isCurrent(conn)) return;
 
       let msg: KrakenMessage;
       try {
@@ -167,7 +212,7 @@ export function startKrakenTicker(
         return;
       }
 
-      armWatchdog(socket);
+      armWatchdog(conn);
 
       if (msg.method === 'subscribe') {
         const pair = msg.result?.symbol;
@@ -195,17 +240,14 @@ export function startKrakenTicker(
     };
 
     socket.onclose = () => {
-      if (mine !== generation) return;
+      release(conn);
+      // The generation gates what this connection may still say, never whether it
+      // cleans up.
+      if (!isCurrent(conn)) return;
       setStatus('offline');
       // Anything still buffered belongs to a dead connection; flushing it after
       // the reconnect would present a pre-drop price as a current one.
       buffer.clear();
-      if (flushTimer) {
-        clearInterval(flushTimer);
-        flushTimer = null;
-      }
-      staleTimer = stopTimer(staleTimer);
-      handshakeTimer = stopTimer(handshakeTimer);
       scheduleReconnect();
     };
 
@@ -223,7 +265,10 @@ export function startKrakenTicker(
     if (next === 'background' && !backgrounded) {
       backgrounded = true;
       reconnectTimer = stopTimer(reconnectTimer);
-      ws?.close();
+      if (current) {
+        release(current);
+        current.socket.close();
+      }
       return;
     }
 
@@ -241,11 +286,11 @@ export function startKrakenTicker(
   return () => {
     stopped = true;
     unsubscribeAppState();
-    if (flushTimer) clearInterval(flushTimer);
-    if (reconnectTimer) clearTimeout(reconnectTimer);
-    staleTimer = stopTimer(staleTimer);
-    handshakeTimer = stopTimer(handshakeTimer);
+    reconnectTimer = stopTimer(reconnectTimer);
     buffer.clear();
-    ws?.close();
+    if (current) {
+      release(current);
+      current.socket.close();
+    }
   };
 }
