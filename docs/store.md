@@ -44,12 +44,17 @@ The pull-to-refresh spinner follows the prices only, for the same reason — awa
 
 **The header counts refusals against the rows that exist, not against `unavailable.length`.** The socket subscribes from the registry while `items` holds whatever Kraken priced, so the two sets can differ: a symbol refused by the socket may have no row at all, and counting it reports a shortfall against a total it was never part of — `Degraded 0/1` while the one visible coin is live.
 
-**`live` needs both halves, and they arrive in either order.** `settled` is knowing which symbols we are subscribed to; `ticked` is a ticker frame actually landing. Neither alone earns the word:
+**`live` needs both halves, and they arrive in either order.** `settled` is knowing which symbols we are subscribed to; `ticked` is a usable price actually landing. Neither alone earns the word:
 
 - **An acknowledgement is a promise to send data, not data.** A server can accept every subscription and then only heartbeat. The price on screen is still the REST seed, so `Live` over it would be exactly the frozen-number lie the state exists to prevent.
 - **One symbol trading is not a feed.** A ticker can beat the last subscribe reply, and until every symbol is answered for there is no telling what `Live` is covering for.
+- **A frame is not a price.** An empty or malformed ticker proves the transport is alive — which the watchdog already tracks — but moves nothing on screen. `ticked` is set inside the loop, only once a finite tick for a subscribed pair is accepted; a frame with none leaves the status where it was.
 
-So `settle()` records `settled` and the ticker branch records `ticked`; whichever lands second claims the word. A ticker is also what un-stales the feed after silence, which falls out of the same rule rather than being a second path.
+So `settle()` records `settled` and the ticker loop records `ticked` when it keeps a price; whichever lands second claims the word. That accepted price is also what un-stales the feed after silence, which falls out of the same rule rather than being a second path.
+
+**A verdict belongs to the connection that reached it.** Every `connect()` clears `unavailable` before it asks, because the last connection's answer is not this one's — and a total refusal closes _without_ settling, so a stale list would outlive the socket that produced it and keep a row saying `Not updating` across a reconnect that accepted it.
+
+**`connecting` means no feed has ever arrived**, so it is the initial status and nothing sets it back. At that point the price on screen is the REST seed and is current. After a drop it is the dead socket's last, so a reconnect stays `offline` until a fresh ticker — saying "connecting" over a stale number calls it current again, which is the same lie as `Live` over a frozen one.
 
 **`stale` is the state a boolean cannot express**: connected, believed healthy, and silently frozen. Kraken heartbeats roughly every second, so ten seconds of silence is a dead connection rather than a quiet market — the socket says so and closes it, because sitting on a half-open socket while rendering "Live" is the one failure a price screen must never have.
 

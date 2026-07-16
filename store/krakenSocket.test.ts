@@ -144,6 +144,22 @@ describe('startKrakenTicker', () => {
     expect(dispatch).toHaveBeenCalledWith(socketStatusChanged('live'));
   });
 
+  // A ticker frame proves the transport, which the watchdog already tracks. It
+  // is a *price* that a live feed needs — an empty or malformed frame leaves
+  // every number on screen exactly where it was.
+  it('does not claim live on a ticker frame that carries no usable price', () => {
+    // Arrange — every symbol acknowledged
+    startAndSubscribe(['btc']);
+
+    // Act — a ticker-channel frame with nothing believable in it
+    latest().onmessage?.(tickerMessage([]));
+    latest().onmessage?.(tickerMessage([{ symbol: 'BTC/USD', last: 'NaN' }]));
+    latest().onmessage?.(tickerMessage([{ symbol: 'DOGE/USD', last: 1 }]));
+
+    // Assert — accepted, but still showing the REST seed
+    expect(dispatch).not.toHaveBeenCalledWith(socketStatusChanged('live'));
+  });
+
   it('does not report live when the subscription is rejected', () => {
     // Arrange
     startKrakenTicker(['btc'], dispatch as unknown as AppDispatch);
@@ -444,6 +460,43 @@ describe('startKrakenTicker', () => {
 
     // Assert
     expect(FakeWebSocket.instances).toHaveLength(2);
+  });
+
+  it('drops the previous connection’s refusals when reconnecting', () => {
+    // Arrange — ETH refused, so the row is showing "Not updating"
+    startKrakenTicker(['btc', 'eth'], dispatch as unknown as AppDispatch);
+    latest().onopen?.();
+    latest().onmessage?.(subscribeReply('BTC/USD'));
+    latest().onmessage?.(subscribeReply('ETH/USD', false));
+    dispatch.mockClear();
+
+    // Act — that connection dies and another is opened
+    latest().onclose?.();
+    jest.advanceTimersByTime(2000);
+
+    // Assert — the new connection has not been answered for yet, so it has no
+    // verdict to report. Keeping the old one marks a row unavailable on a
+    // connection that never refused it, and a total refusal closes without
+    // settling — so the dead socket's opinion would outlive it entirely.
+    expect(dispatch).toHaveBeenCalledWith(subscriptionsSettled([]));
+  });
+
+  it('does not say connecting over a price from a dead socket', () => {
+    // Arrange — a feed that went live and then dropped
+    startAndSubscribe(['btc']);
+    latest().onmessage?.(tickerMessage([{ symbol: 'BTC/USD', last: 42 }]));
+    latest().onclose?.();
+    dispatch.mockClear();
+
+    // Act
+    jest.advanceTimersByTime(2000);
+
+    // Assert — `connecting` is the state before any feed has ever arrived, when
+    // the price on screen is the REST seed and current. After a drop it is the
+    // dead socket's last, and saying "connecting" over it calls it current again.
+    expect(dispatch).not.toHaveBeenCalledWith(
+      socketStatusChanged('connecting'),
+    );
   });
 
   it('backs off exponentially across repeated failures', () => {

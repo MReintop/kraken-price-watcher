@@ -148,8 +148,16 @@ export function startKrakenTicker(
       previous.socket.close();
     }
 
-    setStatus('connecting');
+    // Deliberately not set back to `connecting`. That status means no feed has
+    // ever arrived, so the price on screen is the REST seed and is current. After
+    // a drop it is the dead socket's last, and saying "connecting" over it calls
+    // it current again — so a reconnect stays `offline` until a fresh ticker.
     conn.connectTimer = setTimeout(() => socket.close(), CONNECT_TIMEOUT_MS);
+
+    // This connection has answered for nothing yet, and the last one's verdict is
+    // not its. A total refusal also closes without settling, so leaving the old
+    // list in place would let a dead socket's opinion outlive it.
+    dispatch(subscriptionsSettled([]));
 
     // Kraken answers the subscribe once per symbol. Tracking which ones are
     // still outstanding is what stops the first "yes" speaking for all of them.
@@ -237,8 +245,6 @@ export function startKrakenTicker(
       }
 
       if (msg.channel !== 'ticker' || !Array.isArray(msg.data)) return;
-      ticked = true;
-      claimLive(); // also what un-stales the feed after silence
       for (const t of msg.data) {
         // Checked, not trusted: the frame is JSON off a socket. A price that is
         // not a finite number reaches chart geometry and draws nothing at all,
@@ -249,7 +255,12 @@ export function startKrakenTicker(
         }
         const base = baseOf(t.symbol);
         buffer.set(base, { symbol: base, last: t.last });
+        // A price, not just a frame: an empty or malformed ticker proves the
+        // transport is alive — which the watchdog already tracks — but leaves
+        // every on-screen price where it was, so it cannot earn "Live".
+        ticked = true;
       }
+      if (ticked) claimLive(); // also what un-stales the feed after silence
     };
 
     socket.onclose = () => {
