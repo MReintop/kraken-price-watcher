@@ -94,7 +94,6 @@ export const { tickersApplied, socketStatusChanged, subscriptionsSettled } =
   coinsSlice.actions;
 export default coinsSlice.reducer;
 
-export const selectCoins = (s: RootState) => s.coins.items;
 export const selectCoinsStatus = (s: RootState) => s.coins.status;
 export const selectCoinsError = (s: RootState) => s.coins.error;
 export const selectSocketStatus = (s: RootState) => s.coins.socket;
